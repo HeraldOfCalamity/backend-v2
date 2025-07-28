@@ -2,7 +2,7 @@ from datetime import datetime, time
 from typing import Optional, List
 from pydantic import BaseModel
 
-from app.domain.entities.user_entity import UserBase, UserUpdate
+from app.domain.entities.user_entity import UserBase, UserOut, UserUpdate
 
 class Disponibilidad(BaseModel):
     dia: int
@@ -45,3 +45,7 @@ class EspecialistaCreateWithUser(BaseModel):
 class EspecialistaUpdateWithUser(BaseModel):
     user: UserUpdate
     especialista: EspecialistaUpdate
+
+class EspecialistaProfileOut(BaseModel):
+    user: UserOut
+    especialista: EspecialistaOut | None

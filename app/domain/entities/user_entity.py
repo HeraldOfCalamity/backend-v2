@@ -20,6 +20,7 @@ class UserUpdate(BaseModel):
     password: str
     role: str
     isActive: bool
+    isVerified: bool
 
 
 class UserOut(BaseModel):

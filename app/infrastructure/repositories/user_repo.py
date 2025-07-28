@@ -39,10 +39,19 @@ async def update_user(user_id: str, data: UserUpdate, tenant_id:str) ->  User:
     user.name = data.username
     user.email = data.email
     user.role = role.id
+    user.isActive = data.isActive
+    user.isVerified = data.isVerified
 
     await user.save()
     return user
 
+async def delete_user(user_id: str, tenant_id: str) -> bool:
+    user = await User.find(User.tenant_id == PydanticObjectId(tenant_id)).find(User.id == PydanticObjectId(user_id)).first_or_none()
+    if not user:
+        raise raise_not_found('User')
+    
+    await user.delete()
+    return True
 
 
 async def get_users_by_tenant(tenant_id: str):

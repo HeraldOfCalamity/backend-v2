@@ -4,7 +4,7 @@ from beanie import PydanticObjectId
 from bson import ObjectId
 from pydantic import BaseModel
 
-from app.domain.entities.user_entity import UserBase, UserUpdate
+from app.domain.entities.user_entity import UserBase, UserOut, UserUpdate
 
 
 class PacienteCreate(BaseModel):    
@@ -48,3 +48,7 @@ class PacienteOut(BaseModel):
 class  PacienteCreateWithUser(BaseModel):
     user: UserBase
     paciente: PacienteCreate
+
+class PacienteProfileOut(BaseModel):
+    user: UserOut
+    paciente: PacienteOut | None
