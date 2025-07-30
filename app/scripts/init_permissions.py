@@ -38,6 +38,9 @@ PERMISSIONS = [
 
     {"name": "read_permissions", "description": "Listar permisos"},
 
+    {"name": "read_office_config", "description": "Listar permisos"},
+    {"name": "update_office_config", "description": "Actualizar parametros"},
+
 
 ]
 async def get_tennant_id() -> PydanticObjectId:

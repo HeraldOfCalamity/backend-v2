@@ -54,7 +54,14 @@ async def delete_especialista(especialista_id: str, tenant_id: str) -> bool:
     await especialista.delete()
     await user.delete()
     return True
-    
+
+async def get_especialista_by_especialidad_id(especialidad_id: str, tenant_id: str) -> list[Especialista]:
+    especialistas = await Especialista.find({
+        "tenant_id": PydanticObjectId(tenant_id),
+        "especialidades": PydanticObjectId(especialidad_id)
+    }).to_list()
+    return especialistas
+
 
 def especialista_to_out(especialista: Especialista):
     especialista_dict = especialista.model_dump()
