@@ -32,6 +32,32 @@ async def listar_mis_citas(ctx=Depends(get_user_and_tenant)):
 
     return [cita_to_out(c) for c in citas]
 
+@router.get('/especialista/{especialista_id}', response_model=list[CitaOut])
+async def listar_mis_citas(ctx=Depends(get_user_and_tenant)):
+    user, tenant_id = ctx
+    role = await get_role_by_id(str(user.role), tenant_id)
+    if not role: 
+        raise raise_not_found(f'Rol {user.role}')
+
+    citas = []
+    if role.name == 'especialista':
+        citas = await get_citas_by_especialista_id(user.id, tenant_id)
+
+    return [cita_to_out(c) for c in citas]
+
+@router.get('/paciente/{paciente_id}', response_model=list[CitaOut])
+async def listar_mis_citas(ctx=Depends(get_user_and_tenant)):
+    user, tenant_id = ctx
+    role = await get_role_by_id(str(user.role), tenant_id)
+    if not role: 
+        raise raise_not_found(f'Rol {user.role}')
+
+    citas = []
+    if role.name == 'paciente':
+        citas = await get_citas_by_paciente_id(user.id, tenant_id)
+
+    return [cita_to_out(c) for c in citas]
+
 @router.get('/admin', response_model=list[CitaOut], dependencies=[Depends(require_permission('read_appointments'))])
 async def listar_citas_todas_admin(ctx=Depends(get_user_and_tenant)):
     user, tenant_id = ctx
