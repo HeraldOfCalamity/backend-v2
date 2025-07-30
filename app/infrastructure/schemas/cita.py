@@ -10,6 +10,7 @@ class Cita(Document):
     tenant_id: PydanticObjectId
     paciente_id: PydanticObjectId
     especialista_id: PydanticObjectId
+    especialidad_id: PydanticObjectId
     fecha_inicio: datetime
     fecha_fin: datetime
     duration_minutes: int = Field(..., ge=1, le=24 * 60)

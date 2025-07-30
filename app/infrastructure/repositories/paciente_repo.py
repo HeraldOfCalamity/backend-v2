@@ -1,4 +1,5 @@
 from beanie import PydanticObjectId
+from beanie.operators import And
 from app.core.exceptions import raise_not_found
 from app.domain.entities.paciente_entity import PacienteCreate, PacienteOut, PacienteUpdate
 from app.infrastructure.schemas.paciente import Paciente
@@ -54,6 +55,12 @@ async def delete_paciente(paciente_id: str, tenant_id: str) -> bool:
     await paciente.delete()
     await user.delete()
     return True
+
+async def get_paciente_by_id(paciente_id: str, tenant_id: str) -> Paciente:
+    return await Paciente.find_one(And(
+        Paciente.tenant_id == PydanticObjectId(tenant_id),
+        Paciente.id == PydanticObjectId(paciente_id)
+    ))
 
 def paciente_to_out(paciente: Paciente) -> PacienteOut:
     dict_paciente = paciente.model_dump()

@@ -1,4 +1,5 @@
 from beanie import PydanticObjectId
+from beanie.operators import And
 from app.core.exceptions import raise_not_found
 from app.domain.entities.officeConfig_entity import OfficeConfigOut, OfficeConfigUpdate
 from app.infrastructure.schemas.officeConfig import OfficeConfig
@@ -17,7 +18,13 @@ async def update_office_config(config_id: str, data: OfficeConfigUpdate, tenant_
 
     await config.save()
     return config
-    
+
+async def get_office_config_by_name(name: str, tenant_id: str) -> OfficeConfig:
+    return await OfficeConfig.find_one(And(
+        OfficeConfig.tenant_id == PydanticObjectId(tenant_id),
+        OfficeConfig.name == name
+    ))
+
 def office_config_to_out(office_config: OfficeConfig) -> OfficeConfigOut:
     office_config_dict = office_config.model_dump()
     office_config_dict['id'] = str(office_config.id)

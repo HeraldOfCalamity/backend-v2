@@ -1,4 +1,5 @@
 from beanie import PydanticObjectId
+from beanie.operators import And
 from app.core.exceptions import raise_not_found
 from app.domain.entities.especialista_entity import EspecialistaCreate, EspecialistaOut, EspecialistaUpdate
 from app.infrastructure.schemas.especialista import Especialista
@@ -62,6 +63,11 @@ async def get_especialista_by_especialidad_id(especialidad_id: str, tenant_id: s
     }).to_list()
     return especialistas
 
+async def get_especialista_by_id(especialista_id: str, tenant_id: str) -> Especialista:
+    return await Especialista.find_one(And(
+        Especialista.tenant_id == PydanticObjectId(tenant_id),
+        Especialista.id == PydanticObjectId(especialista_id)
+    ))
 
 def especialista_to_out(especialista: Especialista):
     especialista_dict = especialista.model_dump()

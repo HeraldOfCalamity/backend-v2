@@ -1,4 +1,5 @@
 from beanie import PydanticObjectId
+from beanie.operators import And
 from app.core.exceptions import raise_not_found
 from app.domain.entities.role_entity import RoleCreate, RoleOut, RoleUpdate
 from app.infrastructure.repositories.permission_repo import get_permission_by_name_list, get_permission_by_id_list
@@ -48,6 +49,12 @@ async def delete_role(role_id: str, tenant_id: str) -> bool:
     
     await role.delete()
     return True
+
+async def get_role_by_id(role_id: str, tenant_id: str) -> Role:
+    return await Role.find_one(And(
+        Role.tenant_id == PydanticObjectId(tenant_id),
+        Role.id == PydanticObjectId(role_id)
+    ))
 
 async def role_to_out(role: Role) -> RoleOut:
     role_dict = role.model_dump()

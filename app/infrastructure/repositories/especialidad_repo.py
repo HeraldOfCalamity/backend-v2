@@ -1,4 +1,6 @@
+from re import M
 from beanie import PydanticObjectId
+from beanie.operators import And
 from app.core.exceptions import raise_not_found
 from app.domain.entities.especialidad_entity import EspecialidadCreate, EspecialidadOut, EspecialidadUpdate
 from app.infrastructure.schemas.especialidad import Especialidad
@@ -32,7 +34,12 @@ async def update_especialidad(especialidad_id: str, data: EspecialidadUpdate, te
     await especialidad.save()
     return especialidad
 
-    
+
+async def get_especialidad_by_id(especialidad_id: str, tenant_id: str) -> Especialidad:
+    return await Especialidad.find_one(And(
+        Especialidad.tenant_id == PydanticObjectId(tenant_id),
+        Especialidad.id == PydanticObjectId(especialidad_id)
+    ))
 
 
 def especialidad_to_out(especialidad: Especialidad) -> EspecialidadOut:
