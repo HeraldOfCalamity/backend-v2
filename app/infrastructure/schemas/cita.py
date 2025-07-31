@@ -1,9 +1,9 @@
 from datetime import datetime
-from typing import Optional
+from typing import Any, Optional
 
 from beanie import Document, PydanticObjectId
 from pymongo import IndexModel, ASCENDING, DESCENDING
-from pydantic import Field, field_validator, validator
+from pydantic import Field, field_validator, model_validator, validator
 
 
 class Cita(Document):
@@ -39,9 +39,12 @@ class Cita(Document):
             ),
         ]
 
-    @field_validator("fecha_fin")
-    def end_must_be_after_start(cls, v, values):
-        start = values.get("fecha_inicio")
-        if start and v <= start:
-            raise ValueError("fecha_fin debe ser posterior a fecha_inicio")
-        return v
+    @model_validator(mode="before")
+    @classmethod
+    def end_must_be_after_start(cls, data: Any) -> Any:
+        start = data.get("fecha_inicio")
+        end = data.get("fecha_fin")
+
+        if start and end and end <= start:
+            raise ValueError("La fecha de fin debe ser posterior a la fecha de inicio")
+        return data

@@ -57,10 +57,10 @@ async def delete_paciente(paciente_id: str, tenant_id: str) -> bool:
     return True
 
 async def get_paciente_by_id(paciente_id: str, tenant_id: str) -> Paciente:
-    return await Paciente.find_one(And(
+    return await Paciente.find(And(
         Paciente.tenant_id == PydanticObjectId(tenant_id),
         Paciente.id == PydanticObjectId(paciente_id)
-    ))
+    )).first_or_none()
 
 def paciente_to_out(paciente: Paciente) -> PacienteOut:
     dict_paciente = paciente.model_dump()

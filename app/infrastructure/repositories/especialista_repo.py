@@ -64,10 +64,10 @@ async def get_especialista_by_especialidad_id(especialidad_id: str, tenant_id: s
     return especialistas
 
 async def get_especialista_by_id(especialista_id: str, tenant_id: str) -> Especialista:
-    return await Especialista.find_one(And(
+    return await Especialista.find(And(
         Especialista.tenant_id == PydanticObjectId(tenant_id),
         Especialista.id == PydanticObjectId(especialista_id)
-    ))
+    )).first_or_none()
 
 def especialista_to_out(especialista: Especialista):
     especialista_dict = especialista.model_dump()

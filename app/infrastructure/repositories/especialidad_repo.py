@@ -36,10 +36,10 @@ async def update_especialidad(especialidad_id: str, data: EspecialidadUpdate, te
 
 
 async def get_especialidad_by_id(especialidad_id: str, tenant_id: str) -> Especialidad:
-    return await Especialidad.find_one(And(
+    return await Especialidad.find(And(
         Especialidad.tenant_id == PydanticObjectId(tenant_id),
         Especialidad.id == PydanticObjectId(especialidad_id)
-    ))
+    )).first_or_none()
 
 
 def especialidad_to_out(especialidad: Especialidad) -> EspecialidadOut:

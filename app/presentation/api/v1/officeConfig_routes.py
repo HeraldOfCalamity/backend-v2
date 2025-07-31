@@ -9,7 +9,7 @@ from app.infrastructure.repositories.officeConfig_repo import get_office_config,
 router = APIRouter(prefix='/config', tags=['Configuracion'])
 
 
-@router.get('/', response_model=list[OfficeConfigOut], dependencies=[Depends(require_permission('read_office_config'))])
+@router.get('/', response_model=list[OfficeConfigOut])
 async def obtener_parametros(ctx=Depends(get_user_and_tenant)):
     user, tenant_id = ctx
     config = await get_office_config(tenant_id)

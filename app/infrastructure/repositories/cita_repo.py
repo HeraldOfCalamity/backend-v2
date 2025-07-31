@@ -35,7 +35,7 @@ async def exists_cita_same_day(paciente_id: str, especialista_id: str, fecha: da
     inicio_dia=fecha.replace(hour=0, minute=0, second=0, microsecond=0)
     fin_dia=fecha.replace(hour=23, minute=59, second=59, microsecond=999999)
 
-    return await Cita.find_one(And(
+    return await Cita.find(And(
         Cita.tenant_id == PydanticObjectId(tenant_id),
         Cita.paciente_id == PydanticObjectId(paciente_id),
         Cita.especialista_id == PydanticObjectId(especialista_id),
@@ -43,20 +43,29 @@ async def exists_cita_same_day(paciente_id: str, especialista_id: str, fecha: da
             GTE(Cita.fecha_inicio, inicio_dia),
             LTE(Cita.fecha_inicio, fin_dia)
         )
-    )) is not None
+    )).first_or_none() is not None
 
 async def exists_solapamiento(especialista_id: str, fecha_inicio: datetime, fecha_fin: datetime, tenant_id: str) -> bool:
-    return await Cita.find_one(And(
+    return await Cita.find(And(
         Cita.tenant_id == PydanticObjectId(tenant_id),
         Cita.especialista_id == PydanticObjectId(especialista_id),
         LT(Cita.fecha_inicio, fecha_fin),
         GT(Cita.fecha_fin, fecha_inicio)
-    )) is not None
+    )).first_or_none() is not None
 
 async def create_cita(data: CitaCreate, tenant_id: str) -> Cita:
     duracion_parameter = await get_office_config_by_name('duracion_cita_minutos', tenant_id);
-    duracion = timedelta(minutes=duracion_parameter.value)
+    duracion = timedelta(minutes=float(duracion_parameter.value))
     fecha_fin = data.fecha_inicio + duracion
+
+    if not await get_paciente_by_id(data.paciente_id, tenant_id):
+        raise_not_found('Paciente')
+
+    if not await get_especialista_by_id(data.especialista_id, tenant_id):
+        raise_not_found('Especialista')
+
+    if not await get_especialidad_by_id(data.especialidad_id, tenant_id):
+        raise_not_found('Especialidad')
 
     if await exists_solapamiento(data.especialista_id, data.fecha_inicio,fecha_fin, tenant_id):
         raise raise_duplicate_entity(f'Cita con la hora seleccionada para el especialista')
@@ -93,8 +102,8 @@ async def create_cita(data: CitaCreate, tenant_id: str) -> Cita:
 
 async def cita_to_out(cita: Cita) -> CitaOut:
     paciente = await get_paciente_by_id(str(cita.paciente_id), str(cita.tenant_id))
-    especialista = await get_especialista_by_id(str(cita.especialista_id, str(cita.tenant_id)))
-    especialidad = await get_especialidad_by_id(str(cita.especialidad_id, str(cita.tenant_id)))
+    especialista = await get_especialista_by_id(str(cita.especialista_id), str(cita.tenant_id))
+    especialidad = await get_especialidad_by_id(str(cita.especialidad_id), str(cita.tenant_id))
     estado = await get_estado_cita_by_id(cita.estado_id, str(cita.tenant_id))
 
     cita_out = CitaOut(
