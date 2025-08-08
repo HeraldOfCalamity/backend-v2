@@ -13,6 +13,7 @@ class PacienteCreate(BaseModel):
     fecha_nacimiento: datetime
     tipo_sangre: str
     telefono: str
+    ci: str
 
 class PacienteAutoCreate(BaseModel):   
     user_id: str 
@@ -21,6 +22,7 @@ class PacienteAutoCreate(BaseModel):
     fecha_nacimiento: datetime
     tipo_sangre: str
     telefono: str
+    ci: str
 
 class PacienteUpdate(BaseModel):
     nombre: str
@@ -28,6 +30,7 @@ class PacienteUpdate(BaseModel):
     fecha_nacimiento: datetime
     tipo_sangre: str
     telefono: str
+    ci: str
 
 class PacienteUpdateWithUser(BaseModel):
     user: UserUpdate
@@ -43,6 +46,7 @@ class PacienteOut(BaseModel):
     telefono: str
     createdAt: datetime
     updatedAt: datetime
+    ci: str
     deletedAt: Optional[datetime] = None
 
 class  PacienteCreateWithUser(BaseModel):
@@ -52,3 +56,8 @@ class  PacienteCreateWithUser(BaseModel):
 class PacienteProfileOut(BaseModel):
     user: UserOut
     paciente: PacienteOut | None
+
+class FilterPaciente(BaseModel):
+    ci: Optional[str] = None
+    nombre: Optional[str] = None
+    apellido: Optional[str] = None

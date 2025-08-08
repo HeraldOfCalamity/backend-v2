@@ -10,6 +10,7 @@ class Paciente(Document):
     fecha_nacimiento: datetime
     nombre: str
     apellido: str
+    ci: str
     tipo_sangre: str
     telefono: str
     tenant_id: PydanticObjectId = Field(...)

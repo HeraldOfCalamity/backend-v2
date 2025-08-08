@@ -3,8 +3,8 @@ from fastapi import APIRouter, Depends, status
 from app.core.auth_utils import get_user_and_tenant
 from app.core.exceptions import raise_not_found
 from app.core.security import get_current_user, require_permission
-from app.domain.entities.paciente_entity import PacienteAutoCreate, PacienteCreate, PacienteCreateWithUser, PacienteOut, PacienteProfileOut, PacienteUpdate, PacienteUpdateWithUser
-from app.infrastructure.repositories.paciente_repo import create_paciente, delete_paciente, get_paciente_by_user_id, get_pacientes_by_tenant, paciente_to_out, update_paciente
+from app.domain.entities.paciente_entity import FilterPaciente, PacienteAutoCreate, PacienteCreate, PacienteCreateWithUser, PacienteOut, PacienteProfileOut, PacienteUpdate, PacienteUpdateWithUser
+from app.infrastructure.repositories.paciente_repo import create_paciente, delete_paciente, filter_paciente_by, get_paciente_by_user_id, get_pacientes_by_tenant, paciente_to_out, update_paciente
 from app.infrastructure.repositories.user_repo import create_user, update_user, user_to_out
 from app.infrastructure.schemas.user import User
 
@@ -47,6 +47,12 @@ async def registrar_paciente(data: PacienteAutoCreate, ctx=Depends(get_user_and_
     user, tenant_id = ctx
     created = await create_paciente(data, user_id=str(data.user_id), tenant_id=tenant_id)
     return paciente_to_out(created)
+
+@router.post('/filter', response_model=list[PacienteOut], dependencies=[Depends(require_permission('read_patients'))])
+async def filtrar_pacientes(filter: FilterPaciente, ctx=Depends(get_user_and_tenant)):
+    user, tenant_id = ctx
+    filtered = await filter_paciente_by(filter, tenant_id)
+    return [paciente_to_out(p) for p in filtered]
 
 @router.put('/{paciente_id}', response_model=PacienteOut, dependencies=[Depends(require_permission('update_patients'))])
 async def editar_paciente(paciente_id: str, payload: PacienteUpdate, ctx=Depends(get_user_and_tenant)):

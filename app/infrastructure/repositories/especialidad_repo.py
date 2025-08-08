@@ -31,6 +31,7 @@ async def update_especialidad(especialidad_id: str, data: EspecialidadUpdate, te
 
     especialidad.nombre =data.nombre
     especialidad.descripcion = data.descripcion
+    especialidad.image = data.image
     await especialidad.save()
     return especialidad
 

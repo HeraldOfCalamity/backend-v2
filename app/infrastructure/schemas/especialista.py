@@ -14,9 +14,9 @@ class Especialista(Document):
     user_id: PydanticObjectId = Field(...)
     nombre: str
     apellido: str
+    ci: str
     especialidades: List[PydanticObjectId] = Field(default_factory=list)
     disponibilidades: List[Disponibilidad] = Field(default_factory=list)
-    matricula_profesional: str
     telefono: str
     tenant_id: PydanticObjectId = Field(...)
     createdAt: datetime = Field(default_factory=get_utc_now)

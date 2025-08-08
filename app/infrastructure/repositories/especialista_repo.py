@@ -5,19 +5,20 @@ from app.domain.entities.especialista_entity import EspecialistaCreate, Especial
 from app.infrastructure.schemas.especialista import Especialista
 from app.infrastructure.schemas.user import User
 
-async def create_especialista(data: EspecialistaCreate, user_id: str, tenant_id: str) -> Especialista:
+async def create_especialista(data: EspecialistaCreate, user_id: str, tenant_id: str) -> Especialista:    
     especialista = Especialista(
         user_id=PydanticObjectId(user_id),
         nombre=data.nombre,
         apellido=data.apellido,
         especialidades=[PydanticObjectId(eid) for eid in data.especialidad_ids],
-        matricula_profesional=data.matricula_profesional,
+        ci=data.ci,
+        # matricula_profesional=data.matricula_profesional,
         telefono=data.telefono,
         disponibilidades=[disp.model_dump() for disp in data.disponibilidades],
-        tenant_id=tenant_id
+        tenant_id=tenant_id,
     )
-
     created = await especialista.insert()
+    print(created.ci)
     return created
 
 async def update_especialista(especialista_id: str, data: EspecialistaUpdate, tenant_id:str):
@@ -27,10 +28,11 @@ async def update_especialista(especialista_id: str, data: EspecialistaUpdate, te
     
     especialista.nombre = data.nombre
     especialista.apellido = data.apellido
-    especialista.matricula_profesional = data.matricula_profesional
+    # especialista.matricula_profesional = data.matricula_profesional
     especialista.telefono = data.telefono
     especialista.especialidades = [PydanticObjectId(eId) for eId in data.especialidad_ids]
     especialista.disponibilidades = [disp.model_dump() for disp in data.disponibilidades]
+    especialista.ci = data.ci
 
     await especialista.save()
     return especialista

@@ -1,5 +1,7 @@
+from ast import And
 from beanie import PydanticObjectId
-from app.core.exceptions import raise_not_found
+from beanie.operators import And
+from app.core.exceptions import raise_duplicate_entity, raise_not_found
 from app.core.security import get_password_hash
 from app.domain.entities.user_entity import UserBase, UserOut, UserUpdate
 from app.infrastructure.repositories.role_repo import get_role_by_name
@@ -12,6 +14,15 @@ async def create_user(data: UserBase, tenant_id: str):
 
     if not role:
         raise raise_not_found('Rol no encontrado.')
+    
+    
+    founded_user = await User.find(And(
+        User.tenant_id == PydanticObjectId(tenant_id),
+        User.email == data.email
+    )).to_list()
+
+    if len(founded_user) > 0:
+        raise raise_duplicate_entity(f"Usuario con email: {data.email}")
 
     user = User(
         name=data.username,

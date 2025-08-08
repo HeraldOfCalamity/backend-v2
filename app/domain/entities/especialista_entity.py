@@ -13,24 +13,24 @@ class EspecialistaCreate(BaseModel):
     especialidad_ids: List[str]
     nombre: str
     apellido: str
-    matricula_profesional: str
     telefono: str
+    ci: str
     disponibilidades: List[Disponibilidad]
     
 class EspecialistaUpdate(BaseModel):
     especialidad_ids: List[str]
     nombre: str
     apellido: str
-    matricula_profesional: str
+    ci: str
     telefono: str
     disponibilidades: List[Disponibilidad]
 
 class EspecialistaOut(BaseModel):
     id: str
     user_id: str
+    ci: str
     especialidad_ids: List[str]
     disponibilidades: List[Disponibilidad]
-    matricula_profesional: str
     nombre: str
     apellido: str
     telefono: str

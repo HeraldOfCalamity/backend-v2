@@ -1,12 +1,22 @@
 from beanie import PydanticObjectId
-from beanie.operators import And
-from app.core.exceptions import raise_not_found
-from app.domain.entities.paciente_entity import PacienteCreate, PacienteOut, PacienteUpdate
+from beanie.operators import And, RegEx
+from app.core.exceptions import raise_duplicate_entity, raise_not_found
+from app.domain.entities.paciente_entity import FilterPaciente, PacienteCreate, PacienteOut, PacienteUpdate
 from app.infrastructure.schemas.paciente import Paciente
 from app.infrastructure.schemas.user import User
 
 
 async def create_paciente(data: PacienteCreate, user_id: str, tenant_id: str) -> Paciente:
+    base = Paciente.find(Paciente.tenant_id == PydanticObjectId(tenant_id))
+    founded = base.find(Paciente.ci == data.ci)
+
+    if await founded.first_or_none():
+        raise raise_duplicate_entity(f'Paciente con ci: {data.ci}')
+
+    founded = base.find(Paciente.telefono == data.telefono)
+    if await founded.first_or_none():
+        raise raise_duplicate_entity(f'Paciente con telefono: {data.telefono}')
+
     paciente = Paciente(
         user_id=PydanticObjectId(user_id),
         fecha_nacimiento=data.fecha_nacimiento,
@@ -14,6 +24,7 @@ async def create_paciente(data: PacienteCreate, user_id: str, tenant_id: str) ->
         apellido=data.apellido,
         tipo_sangre=data.tipo_sangre,
         telefono=data.telefono,
+        ci=data.ci,
         tenant_id=PydanticObjectId(tenant_id)
     )
 
@@ -30,6 +41,7 @@ async def update_paciente(paciente_id: str, data: PacienteUpdate, tenant_id:str)
     paciente.tipo_sangre = data.tipo_sangre
     paciente.fecha_nacimiento = data.fecha_nacimiento
     paciente.telefono = data.telefono
+    paciente.ci = data.ci
 
     await paciente.save()
     return paciente
@@ -61,6 +73,21 @@ async def get_paciente_by_id(paciente_id: str, tenant_id: str) -> Paciente:
         Paciente.tenant_id == PydanticObjectId(tenant_id),
         Paciente.id == PydanticObjectId(paciente_id)
     )).first_or_none()
+
+async def filter_paciente_by(criteria: FilterPaciente, tenant_id: str) -> list[Paciente]:
+    query = Paciente.find(Paciente.tenant_id == PydanticObjectId(tenant_id))
+
+    if criteria.ci and criteria.ci.strip():
+        query = query.find(RegEx(Paciente.ci, f'^{criteria.ci.strip()}',options='i'))
+
+    if criteria.nombre and criteria.nombre.strip():
+        query = query.find(RegEx(Paciente.nombre, f'^{criteria.nombre.strip()}',options='i'))
+
+    if criteria.apellido and criteria.apellido.strip():
+        query = query.find(RegEx(Paciente.apellido, f'^{criteria.apellido.strip()}',options='i'))        
+
+    query = query.find(Paciente.deletedAt == None)
+    return await query.to_list()
 
 def paciente_to_out(paciente: Paciente) -> PacienteOut:
     dict_paciente = paciente.model_dump()

@@ -13,6 +13,7 @@ class User(Document):
     tenant_id: PydanticObjectId = Field(...)
     isActive: bool = Field(default=True)
     isVerified: bool = Field(default=False)
+    isEmailVerified: bool = Field(default=False)
     createdAt: datetime = Field(default_factory=get_utc_now)
     updatedAt: datetime = Field(default_factory=get_utc_now)
     deletedAt: datetime | None = None
