@@ -3,8 +3,8 @@ from typing import Any, Optional
 
 from beanie import Document, PydanticObjectId
 from pymongo import IndexModel, ASCENDING, DESCENDING
-from pydantic import Field, field_validator, model_validator, validator
-
+from pydantic import BaseModel, Field, field_validator, model_validator, validator
+    
 
 class Cita(Document):
     tenant_id: PydanticObjectId
@@ -16,6 +16,7 @@ class Cita(Document):
     duration_minutes: int = Field(..., ge=1, le=24 * 60)
     estado_id: int = Field(default=0)
     motivo: Optional[str] = Field(default=None, max_length=500)
+    canceledBy: Optional[PydanticObjectId] = Field(default=None)
 
     class Settings:
         name = "citas"

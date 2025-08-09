@@ -8,6 +8,7 @@ from app.infrastructure.repositories.especialista_repo import especialista_to_ou
 from app.infrastructure.repositories.estadoCita_repo import estado_cita_to_out, get_estado_cita_by_id, get_estado_cita_by_name
 from app.infrastructure.repositories.officeConfig_repo import get_office_config_by_name
 from app.infrastructure.repositories.paciente_repo import get_paciente_by_id, paciente_to_out
+from app.infrastructure.repositories.user_repo import get_user_by_id, user_to_out
 from app.infrastructure.schemas.cita import Cita
 from beanie.operators import And, GTE, LTE, LT, GT
 
@@ -75,7 +76,7 @@ async def create_cita(data: CitaCreate, tenant_id: str) -> Cita:
     
     confirmacion_parameter = await get_office_config_by_name('confirmacion_automatica', tenant_id)
 
-    estado_inicial = ESTADOS_CITA.confirmada if confirmacion_parameter.value else ESTADOS_CITA.pendiente
+    estado_inicial = ESTADOS_CITA.confirmada if confirmacion_parameter.value == '1' else ESTADOS_CITA.pendiente
 
     estado = await get_estado_cita_by_id(estado_inicial.value, tenant_id)
     if not estado:
@@ -95,16 +96,70 @@ async def create_cita(data: CitaCreate, tenant_id: str) -> Cita:
 
     cita_guardada = await cita.insert()
 
-    await notificar_evento_cita('creada', f'{cita_guardada.id} {cita_guardada.fecha_inicio} {cita_guardada.fecha_fin}')
+    await notificar_evento_cita(estado.nombre, f'{cita_guardada.id} {cita_guardada.fecha_inicio} {cita_guardada.fecha_fin}')
 
     return cita_guardada
 
+async def confirm_cita(cita_id: str, tenant_id: str) -> Cita:
+    cita = await Cita.find(And(
+        Cita.tenant_id == PydanticObjectId(tenant_id),
+        Cita.id == PydanticObjectId(cita_id)
+    )).first_or_none();
+
+    if not cita:
+        raise raise_not_found('Cita')
+    
+    estado_cita = await get_estado_cita_by_id(cita.estado_id, tenant_id)
+    if estado_cita.nombre != ESTADOS_CITA.pendiente.name:
+        raise raise_duplicate_entity('La cita tiene un estado distindo a pendiente')
+
+    estado = await get_estado_cita_by_id(ESTADOS_CITA.confirmada.value, tenant_id)
+    if not estado:
+        raise raise_not_found(f'Estado de cita {ESTADOS_CITA.confirmada.value}')
+    
+    cita.estado_id=estado.estado_id
+
+    cita_guardada = await cita.save()
+    await notificar_evento_cita(estado.nombre, f'{cita_guardada.id} {cita_guardada.fecha_inicio} {cita_guardada.fecha_fin}')
+    return cita_guardada
+
+async def cancel_cita(cita_id: str, tenant_id: str, user_id: str) -> Cita:
+    cita = await Cita.find(And(
+        Cita.tenant_id == PydanticObjectId(tenant_id),
+        Cita.id == PydanticObjectId(cita_id)
+    )).first_or_none()
+
+    if not cita:
+        raise raise_not_found('Cita')
+    
+    if cita.canceledBy:
+        raise raise_duplicate_entity('La cita ya se encuentra cancelada');
+    
+    estado = await get_estado_cita_by_id(ESTADOS_CITA.cancelada.value, tenant_id)
+    if not estado:
+        raise raise_not_found(f'Estado de cita {ESTADOS_CITA.cancelada.value}')
+    
+    
+    user = await get_user_by_id(user_id, tenant_id)
+    if not estado:
+        raise raise_not_found(f'Estado de cita {ESTADOS_CITA.cancelada.value}')
+    
+    cita.estado_id=estado.estado_id
+    cita.canceledBy=user.id
+
+    cita_guardada = await cita.save()
+    await notificar_evento_cita(estado.nombre, f'{cita_guardada.id} {cita_guardada.fecha_inicio} {cita_guardada.fecha_fin}')
+    return cita_guardada
 
 async def cita_to_out(cita: Cita) -> CitaOut:
     paciente = await get_paciente_by_id(str(cita.paciente_id), str(cita.tenant_id))
     especialista = await get_especialista_by_id(str(cita.especialista_id), str(cita.tenant_id))
     especialidad = await get_especialidad_by_id(str(cita.especialidad_id), str(cita.tenant_id))
     estado = await get_estado_cita_by_id(cita.estado_id, str(cita.tenant_id))
+    
+    canceledByUser = None
+    if cita.canceledBy:
+        canceledByUser = await get_user_by_id(cita.canceledBy, str(cita.tenant_id))
 
     cita_out = CitaOut(
         id=str(cita.id),
@@ -116,6 +171,7 @@ async def cita_to_out(cita: Cita) -> CitaOut:
         fecha_fin=cita.fecha_fin,
         fecha_inicio=cita.fecha_inicio,
         motivo=cita.motivo,
+        canceledBy=user_to_out(canceledByUser) if canceledByUser else None,
     )
 
     return cita_out

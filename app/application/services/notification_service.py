@@ -10,7 +10,7 @@ class NotificationType(str, Enum):
     PUSH = 'push'
 
 async def notificar_evento_cita(
-    evento: Literal["creada", "confirmada", "cancelada", "reprogramada"],
+    evento: str,
     message: str,
     tipo: list[NotificationType] = [NotificationType.EMAIL, NotificationType.PUSH]
 ):

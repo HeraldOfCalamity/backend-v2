@@ -6,6 +6,7 @@ from app.domain.entities.especialidad_entity import EspecialidadOut
 from app.domain.entities.especialista_entity import EspecialistaOut
 from app.domain.entities.estadoCita_entity import EstadoCitaOut
 from app.domain.entities.paciente_entity import PacienteOut
+from app.domain.entities.user_entity import UserOut
 
 
 class CitaCreate(BaseModel):
@@ -23,6 +24,7 @@ class CitaOut(BaseModel):
     especialidad: EspecialidadOut
     fecha_inicio: datetime
     fecha_fin: datetime
+    canceledBy: UserOut | None
     duration_minutes: int
     estado: EstadoCitaOut
     motivo: Optional[str]

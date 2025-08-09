@@ -4,7 +4,7 @@ from app.core.auth_utils import get_user_and_tenant
 from app.core.exceptions import raise_not_found
 from app.core.security import require_permission
 from app.domain.entities.cita_entity import CitaCreate, CitaOut
-from app.infrastructure.repositories.cita_repo import cita_to_out, create_cita, get_citas_by_especialista_id, get_citas_by_paciente_id, get_citas_by_tenant_id
+from app.infrastructure.repositories.cita_repo import cancel_cita, cita_to_out, confirm_cita, create_cita, get_citas_by_especialista_id, get_citas_by_paciente_id, get_citas_by_tenant_id
 from app.infrastructure.repositories.role_repo import get_role_by_id
 
 
@@ -59,3 +59,15 @@ async def listar_citas_todas_admin(ctx=Depends(get_user_and_tenant)):
     
     citas = await get_citas_by_tenant_id(tenant_id)
     return [await cita_to_out(c) for c in citas]
+
+@router.put('/cancelar/{cita_id}', response_model=CitaOut, dependencies=[Depends(require_permission('cancel_appointments'))])
+async def cancelar_cita(cita_id: str, ctx=Depends(get_user_and_tenant)):
+    user, tenant_id=ctx
+    canceled = await cancel_cita(cita_id, tenant_id, str(user.id))
+    return await cita_to_out(canceled)
+
+@router.put('/confirmar/{cita_id}', response_model=CitaOut, dependencies=[Depends(require_permission('confirm_appointments'))])
+async def cancelar_cita(cita_id: str, ctx=Depends(get_user_and_tenant)):
+    user, tenant_id=ctx
+    confirmed = await confirm_cita(cita_id, tenant_id)
+    return await cita_to_out(confirmed)

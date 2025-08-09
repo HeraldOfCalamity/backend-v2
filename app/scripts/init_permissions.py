@@ -43,6 +43,8 @@ PERMISSIONS = [
 
     {"name": "create_appointments", "description": "Crear citas"},
     {"name": "read_appointments", "description": "Listar citas"},
+    {"name": "cancel_appointments", "description": "Cancelar citas"},
+    {"name": "confirm_appointments", "description": "Confirmar citas"},
 
 
 ]

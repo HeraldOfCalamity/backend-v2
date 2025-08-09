@@ -4,10 +4,10 @@ from fastapi import HTTPException, status
 from fastapi.responses import JSONResponse
 logger = logging.getLogger('uvicorn.error')
 
-def raise_duplicate_entity(entity: str):
+def raise_duplicate_entity(message: str):
     raise HTTPException(
         status_code=status.HTTP_400_BAD_REQUEST,
-        detail=f'{entity} ya existe en la aplicacion.'
+        detail=f'{message}'
     )
 
 def raise_not_found(entity: str):

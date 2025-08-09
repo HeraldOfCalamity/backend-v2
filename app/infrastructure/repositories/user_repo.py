@@ -69,6 +69,14 @@ async def get_users_by_tenant(tenant_id: str):
     admin_role = await get_role_by_name('admin', tenant_id)
     return await User.find(User.tenant_id == PydanticObjectId(tenant_id)).find(User.role != admin_role.id).to_list()
 
+async def get_user_by_id(user_id: str, tenant_id: str):
+    user = await User.find(And(
+        User.tenant_id == PydanticObjectId(tenant_id),
+        User.id == PydanticObjectId(user_id)
+    )).first_or_none()
+
+    return user
+
 def user_to_out(user: User):
     user_dict = user.model_dump()
     user_dict['id'] = str(user.id)
