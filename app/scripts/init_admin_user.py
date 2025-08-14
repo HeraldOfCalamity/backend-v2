@@ -9,7 +9,7 @@ from app.infrastructure.schemas.user import User
 
 
 ADMIN_NAME = 'administrador'
-ADMIN_EMAIL = 'admin@benedetta.com'
+ADMIN_EMAIL = 'leguinov_cb@est.emi.edu.bo'
 ADMIN_PASSWORD = 'admin123'
 
 async def get_tenant_id() -> PydanticObjectId:

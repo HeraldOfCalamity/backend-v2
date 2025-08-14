@@ -19,9 +19,9 @@ class CitaCreate(BaseModel):
 
 class CitaOut(BaseModel):
     id: str
-    paciente: PacienteOut
-    especialista: EspecialistaOut
-    especialidad: EspecialidadOut
+    paciente: PacienteOut | None
+    especialista: EspecialistaOut | None
+    especialidad: EspecialidadOut | None
     fecha_inicio: datetime
     fecha_fin: datetime
     canceledBy: UserOut | None

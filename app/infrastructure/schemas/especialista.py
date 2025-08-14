@@ -1,5 +1,5 @@
 from datetime import datetime, time
-from typing import List
+from typing import List, Optional
 from beanie import Document, PydanticObjectId
 from pydantic import BaseModel, Field
 
@@ -18,6 +18,8 @@ class Especialista(Document):
     especialidades: List[PydanticObjectId] = Field(default_factory=list)
     disponibilidades: List[Disponibilidad] = Field(default_factory=list)
     telefono: str
+    informacion: Optional[str] = Field(default=None, max_length=500)
+    image: Optional[str] = Field(default=None)
     tenant_id: PydanticObjectId = Field(...)
     createdAt: datetime = Field(default_factory=get_utc_now)
     updatedAt: datetime = Field(default_factory=get_utc_now)

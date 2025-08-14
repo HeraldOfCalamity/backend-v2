@@ -15,6 +15,8 @@ class EspecialistaCreate(BaseModel):
     apellido: str
     telefono: str
     ci: str
+    image: Optional[str] = ''
+    informacion: Optional[str] = ''
     disponibilidades: List[Disponibilidad]
     
 class EspecialistaUpdate(BaseModel):
@@ -23,6 +25,8 @@ class EspecialistaUpdate(BaseModel):
     apellido: str
     ci: str
     telefono: str
+    image: Optional[str] = None
+    informacion: Optional[str] = None
     disponibilidades: List[Disponibilidad]
 
 class EspecialistaOut(BaseModel):
@@ -36,6 +40,8 @@ class EspecialistaOut(BaseModel):
     telefono: str
     createdAt: datetime
     updatedAt: datetime
+    image: Optional[str] = None
+    informacion: Optional[str] = None
     deletedAt: Optional[datetime] = None
 
 class EspecialistaCreateWithUser(BaseModel):

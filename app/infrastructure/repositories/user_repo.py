@@ -4,7 +4,9 @@ from beanie.operators import And
 from app.core.exceptions import raise_duplicate_entity, raise_not_found
 from app.core.security import get_password_hash
 from app.domain.entities.user_entity import UserBase, UserOut, UserUpdate
-from app.infrastructure.repositories.role_repo import get_role_by_name
+from app.infrastructure.repositories.role_repo import get_role_by_id, get_role_by_name
+from app.infrastructure.schemas.especialista import Especialista
+from app.infrastructure.schemas.paciente import Paciente
 from app.infrastructure.schemas.user import User
 
 
@@ -61,7 +63,31 @@ async def delete_user(user_id: str, tenant_id: str) -> bool:
     if not user:
         raise raise_not_found('User')
     
+    role = await get_role_by_id(user.role, tenant_id)
+    
+    if not role:
+        raise raise_not_found('Rol no encontrado')
+    
+    perfil = None
+    if role.name == 'paciente':
+        perfil = Paciente.find(And(
+            Paciente.tenant_id == PydanticObjectId(tenant_id),
+            Paciente.user_id == PydanticObjectId(user_id)
+        )).first_or_none()
+
+    if role.name == 'especialista':
+        perfil = Especialista.find(And(
+            Especialista.tenant_id == PydanticObjectId(tenant_id),
+            Especialista.user_id == PydanticObjectId(user_id)
+        )).first_or_none()
+
+    if not perfil:
+        raise raise_not_found('Perfil no encontrado')
+    
+    
     await user.delete()
+    await perfil.delete()
+
     return True
 
 
@@ -69,13 +95,21 @@ async def get_users_by_tenant(tenant_id: str):
     admin_role = await get_role_by_name('admin', tenant_id)
     return await User.find(User.tenant_id == PydanticObjectId(tenant_id)).find(User.role != admin_role.id).to_list()
 
-async def get_user_by_id(user_id: str, tenant_id: str):
+async def get_user_by_id(user_id: str, tenant_id: str) -> User | None:
     user = await User.find(And(
         User.tenant_id == PydanticObjectId(tenant_id),
         User.id == PydanticObjectId(user_id)
     )).first_or_none()
 
     return user
+
+async def get_admin_user(tenant_id: str) -> User:
+    admin_role = await get_role_by_name('admin', tenant_id)
+    return await User.find(And(
+        User.tenant_id == PydanticObjectId(tenant_id),
+        User.role == admin_role.id
+    )).first_or_none()
+
 
 def user_to_out(user: User):
     user_dict = user.model_dump()

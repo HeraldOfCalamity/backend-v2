@@ -8,6 +8,8 @@ class Settings(BaseSettings):
     SECRET_KEY: str = Field(default="supersecret", env="SECRET_KEY")
     ALGORITHM: str = Field(default="HS256", env="ALGORITHM")
     ACCESS_TOKEN_EXPIRE_MINUTES: int = Field(default=60, env="ACCESS_TOKEN_EXPIRE_MINUTES")
+    SENDGRID_API_KEY: str = Field(env='SENDGRID_API_KEY')
+    SENDGRID_FROM_EMAIL: str = Field(env='SENDGRID_FROM_EMAIL')
 
     class Config:
         env_file = ".env"

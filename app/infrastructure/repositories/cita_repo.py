@@ -1,18 +1,25 @@
 from datetime import datetime, timedelta
+from string import Template
+from typing import Literal, Tuple
 from beanie import PydanticObjectId
+from pydantic import EmailStr
 from app.application.services.notification_service import notificar_evento_cita
-from app.core.exceptions import raise_duplicate_entity, raise_not_found
+from app.core.exceptions import raise_duplicate_entity, raise_forbidden, raise_not_found
 from app.domain.entities.cita_entity import CitaCreate, CitaOut
+from app.infrastructure.notifiers.email_notifier import send_sendgrid_email
 from app.infrastructure.repositories.especialidad_repo import especialidad_to_out, get_especialidad_by_id
 from app.infrastructure.repositories.especialista_repo import especialista_to_out, get_especialista_by_id
 from app.infrastructure.repositories.estadoCita_repo import estado_cita_to_out, get_estado_cita_by_id, get_estado_cita_by_name
 from app.infrastructure.repositories.officeConfig_repo import get_office_config_by_name
+from app.infrastructure.repositories.office_repo import get_benedetta_office
 from app.infrastructure.repositories.paciente_repo import get_paciente_by_id, paciente_to_out
-from app.infrastructure.repositories.user_repo import get_user_by_id, user_to_out
+from app.infrastructure.repositories.user_repo import get_admin_user, get_user_by_id, user_to_out
 from app.infrastructure.schemas.cita import Cita
 from beanie.operators import And, GTE, LTE, LT, GT
 
 from app.infrastructure.schemas.estadoCita import ESTADOS_CITA
+from app.shared.dto.mailData_dto import MailData, ReceiverData
+from app.shared.utils import get_mail_html
 
 async def get_cita_by_id(cita_id: str, tenant_id: str) -> Cita:
     return await Cita.find_one(And(
@@ -27,6 +34,11 @@ async def get_citas_by_paciente_id(paciente_id: str, tenant_id: str) -> list[Cit
     )).to_list()
 
 async def get_citas_by_especialista_id(especialista_id: str, tenant_id: str) -> list[Cita]:
+    citas = await Cita.find(And(
+        Cita.tenant_id == PydanticObjectId(tenant_id),
+        Cita.especialista_id == PydanticObjectId(especialista_id)
+    )).to_list()
+    citas_espcialista = await Cita.find(Cita.especialista_id == PydanticObjectId(especialista_id)).to_list()
     return await Cita.find(And(
         Cita.tenant_id == PydanticObjectId(tenant_id),
         Cita.especialista_id == PydanticObjectId(especialista_id)
@@ -96,7 +108,7 @@ async def create_cita(data: CitaCreate, tenant_id: str) -> Cita:
 
     cita_guardada = await cita.insert()
 
-    await notificar_evento_cita(estado.nombre, f'{cita_guardada.id} {cita_guardada.fecha_inicio} {cita_guardada.fecha_fin}')
+    # await notificar_evento_cita(estado.nombre, f'{cita_guardada.id} {cita_guardada.fecha_inicio} {cita_guardada.fecha_fin}')
 
     return cita_guardada
 
@@ -148,7 +160,10 @@ async def cancel_cita(cita_id: str, tenant_id: str, user_id: str) -> Cita:
     cita.canceledBy=user.id
 
     cita_guardada = await cita.save()
-    await notificar_evento_cita(estado.nombre, f'{cita_guardada.id} {cita_guardada.fecha_inicio} {cita_guardada.fecha_fin}')
+    # await notificar_evento_cita(estado.nombre, f'{cita_guardada.id} {cita_guardada.fecha_inicio} {cita_guardada.fecha_fin}')
+
+    
+
     return cita_guardada
 
 async def cita_to_out(cita: Cita) -> CitaOut:
@@ -178,3 +193,65 @@ async def cita_to_out(cita: Cita) -> CitaOut:
 
 async def get_citas_by_tenant_id(tenant_id: str) -> list[Cita]:
     return await Cita.find(Cita.tenant_id == PydanticObjectId(tenant_id)).to_list()
+
+async def send_cita_email(event: Literal['reserva', 'confirmacion', 'cancelacion'], cita_out: CitaOut) -> None:
+
+    office = await get_benedetta_office()
+
+    email_sending_parameter = await get_office_config_by_name('correos_encendidos', str(office.id))
+
+    if email_sending_parameter.value == '0':
+        return
+        # raise raise_forbidden('El envio de correos esta desactivado, activelo pasando el valor de 1 al parametro "correos_encendidos" en la pagina de configuraciones.')
+
+    data: list[Tuple[str, EmailStr]] = []
+
+    admin_user = await get_admin_user(str(office.id))
+
+    especialista_user = await get_user_by_id(cita_out.especialista.user_id, str(office.id))
+    especialista_full_name = f'{cita_out.especialista.nombre} {cita_out.especialista.apellido}'
+
+    paciente_user = await get_user_by_id(cita_out.paciente.user_id, str(office.id))
+    paciente_full_name = f'{cita_out.paciente.nombre} {cita_out.paciente.apellido}'
+
+
+    base_data = MailData(
+        fecha=cita_out.fecha_inicio.strftime('%d/%m/%Y'),
+        hora=cita_out.fecha_inicio.strftime('%H:%M'),
+        nombre_consultorio=office.name,
+        nombre_especialidad=cita_out.especialidad.nombre,
+        nombre_especialista=especialista_full_name,
+        nombre_paciente=paciente_full_name
+    )
+
+
+    data = [
+        (get_email_message(event, base_data, nombre_receptor=paciente_full_name), paciente_user.email),
+        (get_email_message(event, base_data, nombre_receptor=especialista_full_name), especialista_user.email),
+        (get_email_message(event, base_data, nombre_receptor=admin_user.name), admin_user.email),
+    ]
+
+    mail_subject = f'{event.capitalize()} de Cita'
+
+    for mail in data:
+        await send_sendgrid_email(mail[1], mail_subject ,mail[0])
+
+
+def get_email_message(event: Literal['reserva', 'confirmacion', 'cancelacion'], mailData: MailData, nombre_receptor: str) -> str:
+    if event == 'reserva':
+        mail_template_name = 'reserva_mail_template.html'
+        
+    if event == 'cancelacion':
+        mail_template_name = 'cancelacion_mail_template.html'
+
+    if event == 'confirmacion':
+        mail_template_name = 'confirmacion_mail_template.html'
+
+    values = {
+        **mailData.model_dump(),
+        'nombre_receptor':nombre_receptor
+    }
+
+    html = get_mail_html(mail_template_name, values)
+
+    return html

@@ -9,6 +9,7 @@ OFFICE_CONFIGS = [
     {"name":"duracion_cita_minutos", "value":'45'},
     {"name":"confirmacion_automatica", "value":'0'},
     {"name":"confirmacion_automatica_admin", "value":'1'},
+    {"name":"correos_encendidos", "value":'1'},
 ]
 
 async def get_tenant_id() -> PydanticObjectId:

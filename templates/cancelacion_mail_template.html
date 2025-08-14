@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Cita Reservada</title>
+  <style>
+    body {
+      background-color: #fef9fb;
+      font-family: 'Roboto', sans-serif;
+      margin: 0;
+      padding: 0;
+      color: #333;
+    }
+    .container {
+      max-width: 600px;
+      margin: 40px auto;
+      background: white;
+      border-radius: 12px;
+      padding: 30px;
+      box-shadow: 0 5px 15px rgba(215, 129, 170, 0.2);
+    }
+    .header {
+      text-align: center;
+      padding-bottom: 10px;
+      border-bottom: 2px solid #d781aa;
+    }
+    h2 {
+      color: #d781aa;
+    }
+    .content {
+      margin-top: 20px;
+    }
+    ul {
+      padding-left: 20px;
+    }
+    .footer {
+      margin-top: 30px;
+      font-size: 0.9em;
+      color: #666;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h2>❌ Cita Cancelada</h2>
+    </div>
+    <div class="content">
+      <p>Hola ${nombre_receptor},</p>
+      <p>La cita ha sido cancelada! Aquí están los detalles:</p>
+      <ul>
+        <li><strong>Especialista:</strong> ${nombre_especialista}</li>
+        <li><strong>Especialidad:</strong> ${nombre_especialidad}</li>
+        <li><strong>Paciente:</strong> ${nombre_paciente}</li>
+        <li><strong>Fecha:</strong> ${fecha}</li>
+        <li><strong>Hora:</strong> ${hora}</li>
+      </ul>
+      <p>Si usted no canceló la cita, por favor contacte con el consultorio.</p>
+      <!-- <p>Por favor, llega 10 minutos antes de la cita.</p> -->
+    </div>
+    <div class="footer">
+      — Consultorio ${nombre_consultorio}<br/>
+      Este es un mensaje automático. Por favor, no responda al correo.
+    </div>
+  </div>
+</body>
+</html>

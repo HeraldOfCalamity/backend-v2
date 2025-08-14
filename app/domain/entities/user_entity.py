@@ -1,6 +1,6 @@
 from datetime import datetime
 from typing import Literal, Optional
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, Field
 
 class UserBase(BaseModel):
     username: str
@@ -20,7 +20,7 @@ class UserUpdate(BaseModel):
     password: str
     role: str
     isActive: bool
-    isVerified: bool
+    isVerified: Optional[bool] = False
 
 
 class UserOut(BaseModel):
