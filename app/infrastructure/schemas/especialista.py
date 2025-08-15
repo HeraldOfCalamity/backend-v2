@@ -12,12 +12,8 @@ class Disponibilidad(BaseModel):
 
 class Especialista(Document):
     user_id: PydanticObjectId = Field(...)
-    nombre: str
-    apellido: str
-    ci: str
     especialidades: List[PydanticObjectId] = Field(default_factory=list)
     disponibilidades: List[Disponibilidad] = Field(default_factory=list)
-    telefono: str
     informacion: Optional[str] = Field(default=None, max_length=500)
     image: Optional[str] = Field(default=None)
     tenant_id: PydanticObjectId = Field(...)

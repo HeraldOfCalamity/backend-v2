@@ -1,9 +1,12 @@
 from datetime import datetime
 from typing import Literal, Optional
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, EmailStr
 
 class UserBase(BaseModel):
-    username: str
+    lastname: str 
+    ci: str 
+    phone:str 
+    name: str
     email: EmailStr
     password: str
     role: Optional[str] = 'paciente'
@@ -15,7 +18,10 @@ class UserBase(BaseModel):
 #     role: str
 
 class UserUpdate(BaseModel):
-    username: str
+    lastname: str 
+    ci: str 
+    phone:str
+    name: str
     email: EmailStr
     password: str
     role: str
@@ -25,7 +31,10 @@ class UserUpdate(BaseModel):
 
 class UserOut(BaseModel):
     id: str
-    username: str
+    lastname: str 
+    ci: str 
+    phone:str 
+    name: str
     email: EmailStr
     role: str
     isActive: bool

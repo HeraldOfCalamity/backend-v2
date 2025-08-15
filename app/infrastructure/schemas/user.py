@@ -7,6 +7,9 @@ from app.shared.utils import get_utc_now
 
 class User(Document):
     name: str = Field(...)
+    lastname: str = Field(...)
+    ci: str = Field(...)
+    phone:str = Field(...)
     email: EmailStr = Field(...)
     password: str = Field(...)
     role: PydanticObjectId = Field(...)

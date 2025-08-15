@@ -9,8 +9,11 @@ from app.infrastructure.schemas.user import User
 
 
 ADMIN_NAME = 'administrador'
+ADMIN_LASTNAME = 'benedetta'
 ADMIN_EMAIL = 'leguinov_cb@est.emi.edu.bo'
 ADMIN_PASSWORD = 'admin123'
+ADMIN_PHONE = ''
+ADMIN_CI = ''
 
 async def get_tenant_id() -> PydanticObjectId:
     office = await get_benedetta_office()
@@ -38,6 +41,9 @@ async def seed_admin_user():
     admin_user = User(
         name=ADMIN_NAME,
         email=ADMIN_EMAIL,
+        ci=ADMIN_CI,
+        lastname=ADMIN_LASTNAME,
+        phone=ADMIN_PHONE,
         password=hashed_password,
         role=role.id,
         tenant_id=tenant_id,

@@ -1,6 +1,7 @@
 from ast import And
 from beanie import PydanticObjectId
 from beanie.operators import And
+import pymongo
 from app.core.exceptions import raise_duplicate_entity, raise_not_found
 from app.core.security import get_password_hash
 from app.domain.entities.user_entity import UserBase, UserOut, UserUpdate
@@ -27,7 +28,10 @@ async def create_user(data: UserBase, tenant_id: str):
         raise raise_duplicate_entity(f"Usuario con email: {data.email}")
 
     user = User(
-        name=data.username,
+        name=data.name,
+        ci=data.ci,
+        phone=data.phone,
+        lastname=data.lastname,
         email=data.email,
         tenant_id=tenant_id,
         password=hashed_pw,
@@ -46,12 +50,17 @@ async def update_user(user_id: str, data: UserUpdate, tenant_id:str) ->  User:
         raise raise_not_found('User')
     
     role = await get_role_by_name(data.role.lower(), tenant_id)
-    if not role:
+    role_by_id = await get_role_by_id(data.role, tenant_id)
+
+    if not role and not role_by_id:
         raise raise_not_found("Role")
 
-    user.name = data.username
+    user.name=data.name
+    user.ci=data.ci
+    user.phone=data.phone
+    user.lastname=data.lastname
     user.email = data.email
-    user.role = role.id
+    user.role = role.id if role else role_by_id.id
     user.isActive = data.isActive
     user.isVerified = data.isVerified
 
@@ -85,15 +94,22 @@ async def delete_user(user_id: str, tenant_id: str) -> bool:
         raise raise_not_found('Perfil no encontrado')
     
     
-    await user.delete()
-    await perfil.delete()
+    user.isActive=False
+    await user.save()
+    # await user.delete()
+    # await perfil.delete()
 
     return True
 
 
 async def get_users_by_tenant(tenant_id: str):
     admin_role = await get_role_by_name('admin', tenant_id)
-    return await User.find(User.tenant_id == PydanticObjectId(tenant_id)).find(User.role != admin_role.id).to_list()
+    return await User.find(And(
+        User.tenant_id == PydanticObjectId(tenant_id)),
+        User.role != admin_role.id
+    ).sort([
+        (User.createdAt, pymongo.DESCENDING)
+    ]).to_list()
 
 async def get_user_by_id(user_id: str, tenant_id: str) -> User | None:
     user = await User.find(And(
@@ -115,4 +131,4 @@ def user_to_out(user: User):
     user_dict = user.model_dump()
     user_dict['id'] = str(user.id)
     user_dict['role'] = str(user.role)
-    return UserOut(**user_dict, username=user.name)
+    return UserOut(**user_dict)
