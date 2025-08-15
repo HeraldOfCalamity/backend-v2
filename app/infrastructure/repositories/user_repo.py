@@ -18,14 +18,32 @@ async def create_user(data: UserBase, tenant_id: str):
     if not role:
         raise raise_not_found('Rol no encontrado.')
     
-    
+    founded_user = None
+
     founded_user = await User.find(And(
         User.tenant_id == PydanticObjectId(tenant_id),
         User.email == data.email
-    )).to_list()
+    )).first_or_none()
 
-    if len(founded_user) > 0:
-        raise raise_duplicate_entity(f"Usuario con email: {data.email}")
+    if founded_user:
+        raise raise_duplicate_entity(f"Usuario con email: {data.email} ya existe")
+    
+    founded_user = await User.find(And(
+        User.tenant_id == PydanticObjectId(tenant_id),
+        User.ci == data.ci
+    )).first_or_none()
+
+    if founded_user:
+        raise raise_duplicate_entity(f"Usuario con ci: {data.ci} ya existe")
+
+    founded_user = await User.find(And(
+        User.tenant_id == PydanticObjectId(tenant_id),
+        User.phone == data.phone
+    )).first_or_none()
+
+    if founded_user:
+        raise raise_duplicate_entity(f"Usuario con telefono: {data.phone} ya existe")
+
 
     user = User(
         name=data.name,
@@ -76,23 +94,6 @@ async def delete_user(user_id: str, tenant_id: str) -> bool:
     
     if not role:
         raise raise_not_found('Rol no encontrado')
-    
-    perfil = None
-    if role.name == 'paciente':
-        perfil = Paciente.find(And(
-            Paciente.tenant_id == PydanticObjectId(tenant_id),
-            Paciente.user_id == PydanticObjectId(user_id)
-        )).first_or_none()
-
-    if role.name == 'especialista':
-        perfil = Especialista.find(And(
-            Especialista.tenant_id == PydanticObjectId(tenant_id),
-            Especialista.user_id == PydanticObjectId(user_id)
-        )).first_or_none()
-
-    if not perfil:
-        raise raise_not_found('Perfil no encontrado')
-    
     
     user.isActive=False
     await user.save()

@@ -1,30 +1,21 @@
 from beanie import PydanticObjectId
 from beanie.operators import And, RegEx
+import pymongo
 from app.core.exceptions import raise_duplicate_entity, raise_not_found
-from app.domain.entities.paciente_entity import FilterPaciente, PacienteCreate, PacienteOut, PacienteUpdate
+from app.domain.entities.paciente_entity import PacienteCreate, PacienteOut, PacienteProfileOut, PacienteUpdate
+from app.infrastructure.repositories.user_repo import delete_user, get_user_by_id, user_to_out
 from app.infrastructure.schemas.paciente import Paciente
 from app.infrastructure.schemas.user import User
 
 
 async def create_paciente(data: PacienteCreate, user_id: str, tenant_id: str) -> Paciente:
-    base = Paciente.find(Paciente.tenant_id == PydanticObjectId(tenant_id))
-    founded = base.find(Paciente.ci == data.ci)
+    paciente = Paciente.find(Paciente.tenant_id == PydanticObjectId(tenant_id))
 
-    if await founded.first_or_none():
-        raise raise_duplicate_entity(f'Paciente con ci: {data.ci}')
-
-    founded = base.find(Paciente.telefono == data.telefono)
-    if await founded.first_or_none():
-        raise raise_duplicate_entity(f'Paciente con telefono: {data.telefono}')
 
     paciente = Paciente(
         user_id=PydanticObjectId(user_id),
         fecha_nacimiento=data.fecha_nacimiento,
-        nombre=data.nombre,
-        apellido=data.apellido,
         tipo_sangre=data.tipo_sangre,
-        telefono=data.telefono,
-        ci=data.ci,
         tenant_id=PydanticObjectId(tenant_id)
     )
 
@@ -32,40 +23,51 @@ async def create_paciente(data: PacienteCreate, user_id: str, tenant_id: str) ->
     return created
 
 async def update_paciente(paciente_id: str, data: PacienteUpdate, tenant_id:str):
-    paciente = await Paciente.find(Paciente.tenant_id == PydanticObjectId(tenant_id)).find(Paciente.id == PydanticObjectId(paciente_id)).first_or_none()
+    paciente = await Paciente.find(And(
+        Paciente.tenant_id == PydanticObjectId(tenant_id),
+        Paciente.id == PydanticObjectId(paciente_id)
+    )).first_or_none()
+
     if not paciente:
         raise raise_not_found('Paciente')
     
-    paciente.nombre = data.nombre
-    paciente.apellido = data.apellido
     paciente.tipo_sangre = data.tipo_sangre
     paciente.fecha_nacimiento = data.fecha_nacimiento
-    paciente.telefono = data.telefono
-    paciente.ci = data.ci
 
     await paciente.save()
     return paciente
 
 
 async def get_pacientes_by_tenant(tenant_id: str) -> list[Paciente]:
-    return await Paciente.find(Paciente.tenant_id == PydanticObjectId(tenant_id)).to_list()
+    return await Paciente.find(
+        Paciente.tenant_id == PydanticObjectId(tenant_id)
+    ).sort([
+        (Paciente.createdAt, pymongo.DESCENDING)
+    ]).to_list()
 
 async def get_paciente_by_user_id(user_id: str, tenant_id: str) -> Paciente | None:
-    return await Paciente.find(Paciente.user_id == PydanticObjectId(user_id)).find(Paciente.tenant_id == PydanticObjectId(tenant_id)).first_or_none()
+    return await Paciente.find(And(
+        Paciente.tenant_id == PydanticObjectId(tenant_id),
+        Paciente.user_id == PydanticObjectId(user_id),
+    )).first_or_none()
 
 async def delete_paciente(paciente_id: str, tenant_id: str) -> bool:
-    paciente = await Paciente.find(Paciente.tenant_id == PydanticObjectId(tenant_id)).find(Paciente.id == PydanticObjectId(paciente_id)).first_or_none()
+    paciente = await Paciente.find(And(
+        Paciente.tenant_id == PydanticObjectId(tenant_id),
+        Paciente.id == PydanticObjectId(paciente_id)
+    )).first_or_none()
 
     if not paciente:
         raise raise_not_found(f'Paciente {paciente_id}')
     
-    user = await User.find(User.tenant_id == PydanticObjectId(tenant_id)).find(User.id == paciente.user_id).first_or_none()
+    user = await get_user_by_id(str(paciente.user_id), tenant_id)
 
     if not user:
         raise raise_not_found(f'Usuario {str(paciente.user_id)}')
 
-    await paciente.delete()
-    await user.delete()
+    # await paciente.delete()
+    await delete_user(str(user.id), tenant_id)
+
     return True
 
 async def get_paciente_by_id(paciente_id: str, tenant_id: str) -> Paciente:
@@ -74,20 +76,34 @@ async def get_paciente_by_id(paciente_id: str, tenant_id: str) -> Paciente:
         Paciente.id == PydanticObjectId(paciente_id)
     )).first_or_none()
 
-async def filter_paciente_by(criteria: FilterPaciente, tenant_id: str) -> list[Paciente]:
-    query = Paciente.find(Paciente.tenant_id == PydanticObjectId(tenant_id))
+# async def filter_paciente_by(criteria: FilterPaciente, tenant_id: str) -> list[Paciente]:
+#     query = Paciente.find(Paciente.tenant_id == PydanticObjectId(tenant_id))
 
-    if criteria.ci and criteria.ci.strip():
-        query = query.find(RegEx(Paciente.ci, f'^{criteria.ci.strip()}',options='i'))
+#     if criteria.ci and criteria.ci.strip():
+#         query = query.find(RegEx(Paciente.ci, f'^{criteria.ci.strip()}',options='i'))
 
-    if criteria.nombre and criteria.nombre.strip():
-        query = query.find(RegEx(Paciente.nombre, f'^{criteria.nombre.strip()}',options='i'))
+#     if criteria.nombre and criteria.nombre.strip():
+#         query = query.find(RegEx(Paciente.nombre, f'^{criteria.nombre.strip()}',options='i'))
 
-    if criteria.apellido and criteria.apellido.strip():
-        query = query.find(RegEx(Paciente.apellido, f'^{criteria.apellido.strip()}',options='i'))        
+#     if criteria.apellido and criteria.apellido.strip():
+#         query = query.find(RegEx(Paciente.apellido, f'^{criteria.apellido.strip()}',options='i'))        
 
-    query = query.find(Paciente.deletedAt == None)
-    return await query.to_list()
+#     query = query.find(Paciente.deletedAt == None)
+#     return await query.to_list()
+
+
+async def get_pacientes_with_user(tenant_id: str) -> list[PacienteProfileOut]:
+    pacientes = await get_pacientes_by_tenant(tenant_id)
+    result = []
+
+    for p in pacientes:
+        usuario = await get_user_by_id(str(p.user_id), tenant_id)
+        result.append(PacienteProfileOut(
+            paciente=paciente_to_out(p),
+            user=user_to_out(usuario) if usuario else None
+        ))
+
+    return result
 
 def paciente_to_out(paciente: Paciente) -> PacienteOut:
     dict_paciente = paciente.model_dump()
