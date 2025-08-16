@@ -9,6 +9,7 @@ class UserBase(BaseModel):
     name: str
     email: EmailStr
     password: str
+    isVerified: Optional[bool] = False
     role: Optional[str] = 'paciente'
 
 # class UserCreate(BaseModel):
@@ -23,7 +24,7 @@ class UserUpdate(BaseModel):
     phone:str
     name: str
     email: EmailStr
-    password: str
+    password: Optional[str] = None
     role: str
     isActive: bool
     isVerified: Optional[bool] = False

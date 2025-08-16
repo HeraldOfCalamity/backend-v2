@@ -91,6 +91,14 @@ async def get_paciente_by_id(paciente_id: str, tenant_id: str) -> Paciente:
 #     query = query.find(Paciente.deletedAt == None)
 #     return await query.to_list()
 
+async def get_paciente_profile_by_id(paciente_id: str, tenant_id: str) -> PacienteProfileOut:
+    paciente = await get_paciente_by_id(paciente_id, tenant_id)
+    user = await get_user_by_id(str(paciente.user_id), tenant_id)
+
+    return PacienteProfileOut(
+        paciente=paciente_to_out(paciente),
+        user=user_to_out(user)
+    )
 
 async def get_pacientes_with_user(tenant_id: str) -> list[PacienteProfileOut]:
     pacientes = await get_pacientes_by_tenant(tenant_id)

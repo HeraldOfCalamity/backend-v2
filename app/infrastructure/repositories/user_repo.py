@@ -55,7 +55,7 @@ async def create_user(data: UserBase, tenant_id: str):
         password=hashed_pw,
         role=PydanticObjectId(role.id),
         isActive=True,
-        isVerified=False
+        isVerified=data.isVerified
     )
 
     created = await user.insert()
@@ -68,10 +68,20 @@ async def update_user(user_id: str, data: UserUpdate, tenant_id:str) ->  User:
         raise raise_not_found('User')
     
     role = await get_role_by_name(data.role.lower(), tenant_id)
-    role_by_id = await get_role_by_id(data.role, tenant_id)
+
+    role_by_id = None
+    if not role:
+        role_by_id = await get_role_by_id(data.role, tenant_id)
 
     if not role and not role_by_id:
         raise raise_not_found("Role")
+    
+    # user_by_email = await User.find(And(
+    #     User.tenant_id == PydanticObjectId(tenant_id),
+    #     User.id != user.id,
+    #     User.email == data.email,
+    #     User.isActive == True
+    # )).first_or_none()
 
     user.name=data.name
     user.ci=data.ci

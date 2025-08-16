@@ -4,12 +4,20 @@ from app.core.auth_utils import get_user_and_tenant
 from app.core.exceptions import raise_not_found
 from app.core.security import get_current_user, require_permission
 from app.domain.entities.paciente_entity import  PacienteAutoCreate, PacienteCreate, PacienteCreateWithUser, PacienteOut, PacienteProfileOut, PacienteUpdate, PacienteUpdateWithUser
-from app.infrastructure.repositories.paciente_repo import create_paciente, delete_paciente, get_paciente_by_user_id, get_pacientes_by_tenant, get_pacientes_with_user, paciente_to_out, update_paciente
+from app.infrastructure.repositories.paciente_repo import create_paciente, delete_paciente, get_paciente_by_user_id, get_paciente_profile_by_id, get_pacientes_by_tenant, get_pacientes_with_user, paciente_to_out, update_paciente
 from app.infrastructure.repositories.user_repo import create_user, update_user, user_to_out
 from app.infrastructure.schemas.user import User
 
 
 router = APIRouter(prefix='/pacientes', tags=['Pacientes'])
+
+@router.get('/perfil/{paciente_id}', response_model=PacienteProfileOut, dependencies=[
+    Depends(require_permission('read_patients')),
+])
+async def obtener_perfil_paciente_by_id(paciente_id: str, ctx=Depends(get_user_and_tenant)):
+    user, tenant_id= ctx
+    paciente = await get_paciente_profile_by_id(paciente_id, tenant_id)
+    return paciente
 
 @router.get('/with-user', response_model=list[PacienteProfileOut], dependencies=[
     Depends(require_permission('read_patients')),

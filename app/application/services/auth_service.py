@@ -20,6 +20,7 @@ async def authenticate_user(email: str, password: str) -> Token:
         payload = {
             'user_id': str(user.id),
             'name': user.name,
+            'lastname': user.lastname,
             'isVerified': user.isVerified,
             'tenant_id': str(user.tenant_id),
             'role': role.name,

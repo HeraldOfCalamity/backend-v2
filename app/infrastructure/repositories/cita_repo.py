@@ -8,11 +8,11 @@ from app.core.exceptions import raise_duplicate_entity, raise_forbidden, raise_n
 from app.domain.entities.cita_entity import CitaCreate, CitaOut
 from app.infrastructure.notifiers.email_notifier import send_sendgrid_email
 from app.infrastructure.repositories.especialidad_repo import especialidad_to_out, get_especialidad_by_id
-from app.infrastructure.repositories.especialista_repo import especialista_to_out, get_especialista_by_id
+from app.infrastructure.repositories.especialista_repo import especialista_to_out, get_especialista_by_id, get_especialista_profile_by_id
 from app.infrastructure.repositories.estadoCita_repo import estado_cita_to_out, get_estado_cita_by_id, get_estado_cita_by_name
 from app.infrastructure.repositories.officeConfig_repo import get_office_config_by_name
 from app.infrastructure.repositories.office_repo import get_benedetta_office
-from app.infrastructure.repositories.paciente_repo import get_paciente_by_id, paciente_to_out
+from app.infrastructure.repositories.paciente_repo import get_paciente_by_id, get_paciente_profile_by_id, get_pacientes_with_user, paciente_to_out
 from app.infrastructure.repositories.user_repo import get_admin_user, get_user_by_id, user_to_out
 from app.infrastructure.schemas.cita import Cita
 from beanie.operators import And, GTE, LTE, LT, GT
@@ -167,8 +167,9 @@ async def cancel_cita(cita_id: str, tenant_id: str, user_id: str) -> Cita:
     return cita_guardada
 
 async def cita_to_out(cita: Cita) -> CitaOut:
-    paciente = await get_paciente_by_id(str(cita.paciente_id), str(cita.tenant_id))
-    especialista = await get_especialista_by_id(str(cita.especialista_id), str(cita.tenant_id))
+    paciente = await get_paciente_profile_by_id(str(cita.paciente_id), str(cita.tenant_id))
+    
+    especialista = await get_especialista_profile_by_id(str(cita.especialista_id), str(cita.tenant_id))
     especialidad = await get_especialidad_by_id(str(cita.especialidad_id), str(cita.tenant_id))
     estado = await get_estado_cita_by_id(cita.estado_id, str(cita.tenant_id))
     
@@ -178,10 +179,10 @@ async def cita_to_out(cita: Cita) -> CitaOut:
 
     cita_out = CitaOut(
         id=str(cita.id),
-        paciente=paciente_to_out(paciente) if paciente else None,
+        paciente=f'{paciente.user.name} {paciente.user.lastname}',
         duration_minutes=cita.duration_minutes,
         especialidad=especialidad_to_out(especialidad) if especialidad else None,
-        especialista=especialista_to_out(especialista) if especialista else None,
+        especialista=f'{especialista.user.name} {especialista.user.lastname}',
         estado=estado_cita_to_out(estado) if estado else None,
         fecha_fin=cita.fecha_fin,
         fecha_inicio=cita.fecha_inicio,
