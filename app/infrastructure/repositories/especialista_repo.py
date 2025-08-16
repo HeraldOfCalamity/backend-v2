@@ -67,12 +67,15 @@ async def delete_especialista(especialista_id: str, tenant_id: str) -> bool:
     await user.save()
     return True
 
-async def get_especialista_by_especialidad_id(especialidad_id: str, tenant_id: str) -> list[Especialista]:
-    especialistas = await Especialista.find(And(
-        Especialista.tenant_id == PydanticObjectId(tenant_id),
-        Especialista.especialidades == PydanticObjectId(especialidad_id)
-    )).to_list()
-    return especialistas
+async def get_especialista_by_especialidad_id(especialidad_id: str, tenant_id: str) -> list[EspecialistaProfileOut]:
+    especialistas = await get_especialistas_with_user(tenant_id);
+    filtered = []
+    for e in especialistas:
+        if especialidad_id in e.especialista.especialidad_ids and e.user.isActive:
+            filtered.append(e)
+
+
+    return filtered
 
 async def get_especialista_by_id(especialista_id: str, tenant_id: str) -> Especialista | None:
     return await Especialista.find(And(

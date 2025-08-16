@@ -16,7 +16,7 @@ async def agendar_cita(data: CitaCreate, ctx=Depends(get_user_and_tenant)):
     user, tenant_id = ctx
     cita = await create_cita(data, tenant_id)
     cita_out = await cita_to_out(cita)
-    role = await get_role_by_id(str(user.role), tenant_id)
+    # role = await get_role_by_id(str(user.role), tenant_id)
     await send_cita_email('reserva', cita_out)
     return cita_out
 

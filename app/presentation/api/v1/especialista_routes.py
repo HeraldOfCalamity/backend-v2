@@ -80,10 +80,10 @@ async def admin_edita_especialista(especialista_id: str, payload: EspecialistaUp
     usuario = await update_user(str(especialista.user_id), payload.user,tenant_id)
     return especialista_to_out(especialista)
 
-@router.get('/by/especialidad/{especialidad_id}', response_model=list[EspecialistaOut], dependencies=[Depends(require_permission('read_especialists'))])
+@router.get('/by/especialidad/{especialidad_id}', response_model=list[EspecialistaProfileOut], dependencies=[Depends(require_permission('read_especialists'))])
 async def listar_especialistas_by_especialidad_id(especialidad_id: str, ctx=Depends(get_user_and_tenant)):
     user, tenant_id = ctx
     especialistas = await get_especialista_by_especialidad_id(especialidad_id, tenant_id)
-    return [especialista_to_out(e) for e in especialistas]
+    return especialistas
 
 
