@@ -6,14 +6,13 @@ from pydantic import Field
 from app.shared.utils import get_utc_now
 
 
-class Especialidad(Document):
+class Tratamiento(Document):
     nombre: Annotated[str, Indexed(unique=True)] = Field(...)
     descripcion: str
-    tratamientos: List[PydanticObjectId] = Field(default_factory=list)
     image: Optional[str] = None
     tenant_id: PydanticObjectId = Field(...)
     createdAt: datetime = Field(default_factory=get_utc_now)
 
     class Settings:
-        name = 'especialidades'
+        name = 'tratamientos'
         

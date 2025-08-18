@@ -1,23 +1,20 @@
-from typing import Optional, List
+from typing import Optional
 from pydantic import BaseModel
 from datetime import datetime
 
-class EspecialidadCreate(BaseModel):
+class TratamientoCreate(BaseModel):
     nombre: str
     descripcion: str
-    tratamientos: List[str]
     image: Optional[str]
 
-class EspecialidadUpdate(BaseModel):
+class TratamientoUpdate(BaseModel):
     nombre: str
     descripcion: str
-    tratamientos: List[str]
     image: Optional[str]
 
-class EspecialidadOut(BaseModel):
+class TratamientoOut(BaseModel):
     id: str
     nombre: str
     image: Optional[str]
-    tratamientos: List[str]
     descripcion: str
     createdAt: datetime

@@ -46,6 +46,10 @@ PERMISSIONS = [
     {"name": "cancel_appointments", "description": "Cancelar citas"},
     {"name": "confirm_appointments", "description": "Confirmar citas"},
 
+    {"name": "create_tratamientos", "description": "Crear Tratamientos"},
+    {"name": "update_tratamientos", "description": "Editar Tratamientos"},
+    {"name": "delete_tratamientos", "description": "Eliminar Tratamientos"},
+
 
 ]
 async def get_tennant_id() -> PydanticObjectId:

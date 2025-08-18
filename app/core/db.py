@@ -11,6 +11,7 @@ from app.infrastructure.schemas.officeConfig import OfficeConfig
 from app.infrastructure.schemas.paciente import Paciente
 from app.infrastructure.schemas.permission import Permission
 from app.infrastructure.schemas.role import Role
+from app.infrastructure.schemas.tratamiento import Tratamiento
 from app.infrastructure.schemas.user import User
 
 client = AsyncIOMotorClient(settings.MONGO_URI)
@@ -29,6 +30,7 @@ async def init_db():
             Especialista,
             EstadoCita,
             Cita,
-            OfficeConfig
+            OfficeConfig,
+            Tratamiento
         ]
     )

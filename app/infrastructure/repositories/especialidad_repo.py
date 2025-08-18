@@ -37,6 +37,8 @@ async def update_especialidad(especialidad_id: str, data: EspecialidadUpdate, te
     especialidad.nombre =data.nombre
     especialidad.descripcion = data.descripcion
     especialidad.image = data.image
+    especialidad.tratamientos=data.tratamientos
+    
     await especialidad.save()
     return especialidad
 
@@ -51,4 +53,5 @@ async def get_especialidad_by_id(especialidad_id: str, tenant_id: str) -> Especi
 def especialidad_to_out(especialidad: Especialidad) -> EspecialidadOut:
     especialidad_dict = especialidad.model_dump()
     especialidad_dict['id'] = str(especialidad.id)
+    especialidad_dict['tratamientos'] = [str(t) for t in especialidad.tratamientos]
     return EspecialidadOut(**especialidad_dict)
