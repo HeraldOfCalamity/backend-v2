@@ -195,7 +195,7 @@ async def cita_to_out(cita: Cita) -> CitaOut:
 async def get_citas_by_tenant_id(tenant_id: str) -> list[Cita]:
     return await Cita.find(Cita.tenant_id == PydanticObjectId(tenant_id)).to_list()
 
-async def send_cita_email(event: Literal['reserva', 'confirmacion', 'cancelacion'], cita_out: CitaOut) -> None:
+async def send_cita_email(event: Literal['reserva', 'confirmacion', 'cancelacion'], cita: Cita) -> None:
 
     office = await get_benedetta_office()
 
@@ -209,26 +209,27 @@ async def send_cita_email(event: Literal['reserva', 'confirmacion', 'cancelacion
 
     admin_user = await get_admin_user(str(office.id))
 
-    especialista_user = await get_user_by_id(cita_out.especialista.user_id, str(office.id))
-    especialista_full_name = f'{cita_out.especialista.nombre} {cita_out.especialista.apellido}'
+    especialista_user = await get_especialista_profile_by_id(str(cita.especialista_id), str(office.id))
+    especialista_full_name = f'{especialista_user.user.name} {especialista_user.user.lastname}'
 
-    paciente_user = await get_user_by_id(cita_out.paciente.user_id, str(office.id))
-    paciente_full_name = f'{cita_out.paciente.nombre} {cita_out.paciente.apellido}'
+    paciente_user = await get_paciente_profile_by_id(str(cita.paciente_id), str(office.id))
+    paciente_full_name = f'{paciente_user.user.name} {paciente_user.user.lastname}'
 
+    especialidad = await get_especialidad_by_id(str(cita.especialidad_id), str(office.id))
 
     base_data = MailData(
-        fecha=cita_out.fecha_inicio.strftime('%d/%m/%Y'),
-        hora=cita_out.fecha_inicio.strftime('%H:%M'),
+        fecha=cita.fecha_inicio.strftime('%d/%m/%Y'),
+        hora=cita.fecha_inicio.strftime('%H:%M'),
         nombre_consultorio=office.name,
-        nombre_especialidad=cita_out.especialidad.nombre,
+        nombre_especialidad=especialidad.nombre,
         nombre_especialista=especialista_full_name,
         nombre_paciente=paciente_full_name
     )
 
 
     data = [
-        (get_email_message(event, base_data, nombre_receptor=paciente_full_name), paciente_user.email),
-        (get_email_message(event, base_data, nombre_receptor=especialista_full_name), especialista_user.email),
+        (get_email_message(event, base_data, nombre_receptor=paciente_full_name), paciente_user.user.email),
+        (get_email_message(event, base_data, nombre_receptor=especialista_full_name), especialista_user.user.email),
         (get_email_message(event, base_data, nombre_receptor=admin_user.name), admin_user.email),
     ]
 
