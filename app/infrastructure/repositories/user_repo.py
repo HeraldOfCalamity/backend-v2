@@ -1,6 +1,7 @@
 from ast import And
 from beanie import PydanticObjectId
 from beanie.operators import And
+from pydantic import EmailStr
 import pymongo
 from app.core.exceptions import raise_duplicate_entity, raise_not_found
 from app.core.security import get_password_hash
@@ -17,8 +18,6 @@ async def create_user(data: UserBase, tenant_id: str):
 
     if not role:
         raise raise_not_found('Rol no encontrado.')
-    
-    founded_user = None
 
     founded_user = await User.find(And(
         User.tenant_id == PydanticObjectId(tenant_id),
@@ -137,6 +136,11 @@ async def get_admin_user(tenant_id: str) -> User:
         User.role == admin_role.id
     )).first_or_none()
 
+async def get_user_by_email(email: EmailStr, tenant_id: str) -> User:
+    return await User.find(And(
+        User.tenant_id == PydanticObjectId(tenant_id),
+        User.email == email
+    )).first_or_none()
 
 def user_to_out(user: User):
     user_dict = user.model_dump()

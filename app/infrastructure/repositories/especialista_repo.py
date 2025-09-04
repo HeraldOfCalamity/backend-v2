@@ -1,19 +1,25 @@
+import base64
+import os
 from re import M
 from beanie import PydanticObjectId
 from beanie.operators import And
 import pymongo
 from app.core.exceptions import raise_duplicate_entity, raise_not_found
-from app.domain.entities.especialista_entity import EspecialistaCreate, EspecialistaOut, EspecialistaProfileOut, EspecialistaUpdate
-from app.infrastructure.repositories.user_repo import get_user_by_id, user_to_out
+from app.domain.entities.especialista_entity import EspecialistaCreate, EspecialistaCreateWithUser, EspecialistaOut, EspecialistaProfileOut, EspecialistaUpdate
+from app.infrastructure.repositories.user_repo import get_user_by_email, get_user_by_id, user_to_out
 from app.infrastructure.schemas.especialista import Especialista
 from app.infrastructure.schemas.user import User
+from app.shared.utils import save_base_64_image_local
 
 async def create_especialista(data: EspecialistaCreate, user_id: str, tenant_id: str) -> Especialista:    
+    image_path=None
+    if data.image:
+        image_path = save_base_64_image_local(data.image, 'especialistas')
     especialista = Especialista(
         user_id=PydanticObjectId(user_id),
         especialidades=[PydanticObjectId(eid) for eid in data.especialidad_ids],
         informacion=data.informacion if data.informacion else None,
-        image=data.image if data.image else None,
+        image=image_path if image_path else None,
         disponibilidades=[disp.model_dump() for disp in data.disponibilidades],
         tenant_id=tenant_id,
     )
@@ -21,13 +27,22 @@ async def create_especialista(data: EspecialistaCreate, user_id: str, tenant_id:
     return created
 
 async def update_especialista(especialista_id: str, data: EspecialistaUpdate, tenant_id:str):
-    especialista = await Especialista.find(Especialista.tenant_id == PydanticObjectId(tenant_id)).find(Especialista.id == PydanticObjectId(especialista_id)).first_or_none()
+    especialista = await Especialista.find(
+        Especialista.tenant_id == PydanticObjectId(tenant_id)
+    ).find(
+        Especialista.id == PydanticObjectId(especialista_id)
+    ).first_or_none()
     if not especialista:
         raise raise_not_found('Especialista')
     
     especialista.especialidades = [PydanticObjectId(eId) for eId in data.especialidad_ids]
     especialista.disponibilidades = [disp.model_dump() for disp in data.disponibilidades]
-    especialista.image = data.image if data.image else None
+
+    if data.image:
+        especialista.image = save_base_64_image_local(data.image, 'especialistas')
+    else:
+        especialista.image = None
+
     especialista.informacion = data.informacion if data.informacion else None
 
     await especialista.save()
@@ -108,7 +123,13 @@ async def get_especialistas_with_user(tenant_id: str) -> list[EspecialistaProfil
 
     return result
    
+async def create_especialista_profile(data: EspecialistaCreateWithUser, tenant_id: str) -> EspecialistaProfileOut:
+    found_user = await get_user_by_email(data.user.email, tenant_id)
+    
+    if found_user:
+        raise raise_duplicate_entity('Ya existe un usuario registrado con ese correo');
 
+    
 
 def especialista_to_out(especialista: Especialista) -> EspecialistaOut:
     especialista_dict = especialista.model_dump()
@@ -116,4 +137,11 @@ def especialista_to_out(especialista: Especialista) -> EspecialistaOut:
     especialista_dict['id'] = str(especialista.id)
     especialista_dict['especialidad_ids'] = [str(eId) for eId in especialista.especialidades]
     
+    image_path = especialista.image
+    if image_path and os.path.exists(image_path):
+        url_path = image_path.replace('\\', '/')
+        especialista_dict['image'] = f"/static/{url_path.split('static/', 1)[-1]}"
+    else:
+        especialista_dict['image'] = None
+
     return EspecialistaOut(**especialista_dict)

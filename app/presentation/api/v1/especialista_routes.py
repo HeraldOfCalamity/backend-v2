@@ -51,7 +51,7 @@ async def actualizar_especialista(especialista_id: str, payload:EspecialistaUpda
     Depends(require_permission('create_users')),
     Depends(require_permission('create_especialists'))
 ])
-async def admin_crea_especialista(payload: EspecialistaCreateWithUser, ctx=Depends(get_user_and_tenant)):
+async def registrar_especialista_perfil(payload: EspecialistaCreateWithUser, ctx=Depends(get_user_and_tenant)):
     user, tenant_id = ctx
     new_user = await create_user(payload.user, tenant_id)
     created = await create_especialista(payload.especialista, user_id=str(new_user.id), tenant_id=tenant_id)
