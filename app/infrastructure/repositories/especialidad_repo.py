@@ -44,7 +44,10 @@ async def update_especialidad(especialidad_id: str, data: EspecialidadUpdate, te
     especialidad.nombre =data.nombre
     especialidad.descripcion = data.descripcion
     if data.image:
-        especialidad.image = save_base_64_image_local(data.image, 'especialidades')
+        if data.image.startswith('/static/'):
+            especialidad_image = os.path.join("static", data.image.split("/static/")[-1])
+        else:
+            especialidad.image = save_base_64_image_local(data.image, 'especialidades')
     else:
         especialidad.image = None
     especialidad.tratamientos=data.tratamientos
