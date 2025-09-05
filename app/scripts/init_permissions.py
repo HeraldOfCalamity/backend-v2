@@ -31,8 +31,8 @@ PERMISSIONS = [
     {"name": "read_specialties", "description": "Listar especialidades"},
     {"name": "delete_specialties", "description": "Eliminar especialidades"},
     
-    {"name": "create_especialist", "description": "Crear especialidades"},
-    {"name": "update_especialist", "description": "Editar especialidades"},
+    {"name": "create_especialists", "description": "Crear especialidades"},
+    {"name": "update_especialists", "description": "Editar especialidades"},
     {"name": "read_especialists", "description": "Listar especialidades"},
     {"name": "delete_especialists", "description": "Eliminar especialidades"},
 
