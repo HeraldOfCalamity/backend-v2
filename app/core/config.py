@@ -10,6 +10,12 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int = Field(default=60, env="ACCESS_TOKEN_EXPIRE_MINUTES")
     SENDGRID_API_KEY: str = Field(env='SENDGRID_API_KEY')
     SENDGRID_FROM_EMAIL: str = Field(env='SENDGRID_FROM_EMAIL')
+    S3_ENDPOINT: str = Field(env='S3_ENDPOINT')
+    S3_REGION: str = Field(env='S3_REGION')
+    S3_BUCKET: str = Field(env='S3_BUCKET')
+    S3_ACCESS_KEY_ID: str = Field(env='S3_ACCESS_KEY_ID')
+    S3_SECRET_ACCESS_KEY: str = Field(env='S3_SECRET_ACCESS_KEY')
+    ALLOWED_ORIGIN: str = Field(env='ALLOWED_ORIGIN')
 
     class Config:
         env_file = ".env"
