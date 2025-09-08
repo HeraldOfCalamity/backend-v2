@@ -107,7 +107,7 @@ async def register_image(body: RegisterImageReq, tenant_id: str):
         tenant_id=PydanticObjectId(tenant_id),
         paciente_id=PydanticObjectId(body.pacienteId),
         historial_id=PydanticObjectId(body.historialId),
-        entrada_id=PydanticObjectId(body.entradaId),
+        entrada_id=body.entradaId,
         bucket=settings.S3_BUCKET,
         key=body.key,
         content_type=body.originalType or ('application/octet-stream' if body.aesKeyB64 else 'image/webp'),
