@@ -5,7 +5,7 @@ from pydantic import BaseModel
 from app.domain.entities.especialidad_entity import EspecialidadOut
 from app.domain.entities.especialista_entity import EspecialistaOut
 from app.domain.entities.estadoCita_entity import EstadoCitaOut
-from app.domain.entities.paciente_entity import PacienteOut
+from app.domain.entities.paciente_entity import PacienteOut, PacienteProfileOut
 from app.domain.entities.user_entity import UserOut
 
 
@@ -20,6 +20,7 @@ class CitaCreate(BaseModel):
 class CitaOut(BaseModel):
     id: str
     paciente: str | None
+    pacienteProfile: PacienteProfileOut | None
     especialista: str | None
     especialidad: EspecialidadOut | None
     fecha_inicio: datetime

@@ -181,6 +181,7 @@ async def cita_to_out(cita: Cita) -> CitaOut:
         id=str(cita.id),
         paciente=f'{paciente.user.name} {paciente.user.lastname}',
         duration_minutes=cita.duration_minutes,
+        pacienteProfile=paciente,
         especialidad=especialidad_to_out(especialidad) if especialidad else None,
         especialista=f'{especialista.user.name} {especialista.user.lastname}',
         estado=estado_cita_to_out(estado) if estado else None,

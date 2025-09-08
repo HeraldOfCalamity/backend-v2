@@ -6,6 +6,7 @@ from app.infrastructure.schemas.cita import Cita
 from app.infrastructure.schemas.especialidad import Especialidad
 from app.infrastructure.schemas.especialista import Especialista
 from app.infrastructure.schemas.estadoCita import EstadoCita
+from app.infrastructure.schemas.historial import HistorialClinico, ImageAsset
 from app.infrastructure.schemas.office import Office
 from app.infrastructure.schemas.officeConfig import OfficeConfig
 from app.infrastructure.schemas.paciente import Paciente
@@ -31,6 +32,8 @@ async def init_db():
             EstadoCita,
             Cita,
             OfficeConfig,
-            Tratamiento
+            Tratamiento,
+            HistorialClinico,
+            ImageAsset
         ]
     )

@@ -47,7 +47,7 @@ async def create_historial(data: HistorialCreate, tenant_id: str) -> HistorialCl
         condActual=data.condActual,
         intervencionClinica=data.condActual,
         paciente_id=PydanticObjectId(data.paciente_id),
-
+        tenant_id=PydanticObjectId(tenant_id)
     )
 
     created = await new_historial.insert()
@@ -77,22 +77,30 @@ async def add_entrada(historial_id: str, tenant_id: str, data: EntradaAdd) -> Hi
     return updated
 
 def presign_upload(body: PresignReq):
+    # Usa la extensión correcta
     ext = '.bin' if body.content_type == 'application/octet-stream' else '.webp'
-    key = f"pacientes/{body.paciente_id}/{body.historial_id or 'no-hist'}/{body.entrada_id or 'no-entry'}/{uuid.uuid4().hex}{ext}"
+    key = (
+        f"pacientes/{body.paciente_id}/"
+        f"{body.historial_id or 'no-hist'}/"
+        f"{body.entrada_id or 'no-entry'}/"
+        f"{uuid.uuid4().hex}{ext}"
+    )
+
     try:
         url = s3.generate_presigned_url(
-            'put object',
+            ClientMethod='put_object',                     
             Params={
                 'Bucket': settings.S3_BUCKET,
-                'key': key,
-                'ContentType': body.content_type
+                'Key': key,                                
+                'ContentType': body.content_type,          
             },
             ExpiresIn=60,
             HttpMethod='PUT'
         )
-        return {'url': url, 'key':key, 'expiresIn': 60}
+        return {'url': url, 'key': key, 'expiresIn': 60}
     except Exception as e:
         raise HTTPException(500, f'presigned error: {e}')
+
     
 async def register_image(body: RegisterImageReq, tenant_id: str):
     img = ImageAsset(

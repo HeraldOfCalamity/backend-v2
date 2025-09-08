@@ -57,12 +57,12 @@ class Entrada(BaseModel):
 
 class HistorialClinico(Document):
     paciente_id: PydanticObjectId
-    tenant_id: PydanticObjectId = Field(...)
+    tenant_id: PydanticObjectId
     antfamiliares: str
     antPersonales: str
     condActual: str
     intervencionClinica: str
-    entradas: List[PydanticObjectId] = Field(default_factory=list)
+    entradas: List[Entrada] = Field(default_factory=list)
     createdAt: datetime = Field(default_factory=get_utc_now)
 
     class Settings:
