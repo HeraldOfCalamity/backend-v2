@@ -22,6 +22,12 @@ class PresignReq(BaseModel):
     filename: str
     content_type: str
 
+class UpdateHistorial(BaseModel):
+    antPersonales: Optional[str] = None
+    antFamiliares: Optional[str] = None
+    condActual: str
+    intervencionClinica: str
+
 class RegisterImageReq(BaseModel):
     pacienteId: str
     historialId: Optional[str]

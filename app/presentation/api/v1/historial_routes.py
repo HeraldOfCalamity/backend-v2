@@ -2,8 +2,8 @@ from fastapi import APIRouter, Depends, Query
 
 from app.core.auth_utils import get_tenant, get_user_and_tenant
 from app.core.exceptions import raise_not_found
-from app.domain.entities.historial_entity import EntradaAdd, HistorialCreate, PresignReq, RegisterImageReq
-from app.infrastructure.repositories.historial_repo import add_entrada, create_historial, get_historial_by_paciente_id, presign_upload, register_image, signed_get
+from app.domain.entities.historial_entity import EntradaAdd, HistorialCreate, PresignReq, RegisterImageReq, UpdateHistorial
+from app.infrastructure.repositories.historial_repo import add_entrada, create_historial, get_historial_by_paciente_id, presign_upload, register_image, signed_get, update_historial_anamnesis
 
 
 router = APIRouter(prefix='/historiales', tags=['Historiales'])
@@ -35,6 +35,12 @@ async def historial_add_entrada(historial_id: str, body: EntradaAdd):
     tenant_id = await get_tenant()
     return await add_entrada(historial_id, tenant_id, body)
     
+@router.put('/{historial_id}/anamnesis')
+async def update_anamnesis(historial_id: str, body: UpdateHistorial):
+    tenant_id = await get_tenant()
+    return await update_historial_anamnesis(body, tenant_id, historial_id)
+
+
 @router.get('/{paciente_id}')
 async def obtener_historial_by_paciente_id(paciente_id: str):
     tenant_id = await get_tenant()

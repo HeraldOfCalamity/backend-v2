@@ -8,7 +8,7 @@ from app.core.config import settings
 from app.core.db import client
 
 from app.core.exceptions import raise_duplicate_entity, raise_not_found
-from app.domain.entities.historial_entity import EntradaAdd, HistorialCreate, PresignReq, RegisterImageReq
+from app.domain.entities.historial_entity import EntradaAdd, HistorialCreate, PresignReq, RegisterImageReq, UpdateHistorial
 from app.infrastructure.schemas.historial import Entrada, HistorialClinico, ImageAsset
 
 s3 = boto3.client(
@@ -32,7 +32,7 @@ async def get_historial_by_paciente_id(paciente_id: str, tenant_id: str) -> Hist
 async def get_historial_by_id(historial_id: str, tenant_id: str) -> HistorialClinico:
     return await HistorialClinico.find(And(
         HistorialClinico.tenant_id == PydanticObjectId(tenant_id),
-        HistorialClinico.id == HistorialClinico(historial_id)
+        HistorialClinico.id == PydanticObjectId(historial_id)
     )).first_or_none()
 
 async def create_historial(data: HistorialCreate, tenant_id: str) -> HistorialClinico:
@@ -53,6 +53,25 @@ async def create_historial(data: HistorialCreate, tenant_id: str) -> HistorialCl
     created = await new_historial.insert()
 
     return created
+
+async def update_historial_anamnesis(updateData: UpdateHistorial, tenant_id: str, historial_id: str) -> HistorialClinico:
+    historial = await get_historial_by_id(historial_id, tenant_id);
+    if not historial:
+        raise raise_not_found('Historial no encontrado')
+    
+    historial.condActual = updateData.condActual
+    historial.intervencionClinica = updateData.intervencionClinica
+    if updateData.antFamiliares:
+        historial.antfamiliares = updateData.antFamiliares
+    
+    if updateData.antPersonales:
+        historial.antPersonales = updateData.antPersonales
+
+    updated = await historial.save()
+
+    return updated
+
+
 
 async def add_entrada(historial_id: str, tenant_id: str, data: EntradaAdd) -> HistorialClinico:
     async with await client.start_session() as s:
