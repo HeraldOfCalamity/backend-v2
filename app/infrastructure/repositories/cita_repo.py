@@ -59,12 +59,13 @@ async def exists_cita_same_day(paciente_id: str, especialista_id: str, fecha: da
     )).first_or_none() is not None
 
 async def exists_solapamiento(especialista_id: str, fecha_inicio: datetime, fecha_fin: datetime, tenant_id: str) -> bool:
-    return await Cita.find(And(
+    cita = await Cita.find(And(
         Cita.tenant_id == PydanticObjectId(tenant_id),
         Cita.especialista_id == PydanticObjectId(especialista_id),
         LT(Cita.fecha_inicio, fecha_fin),
         GT(Cita.fecha_fin, fecha_inicio)
-    )).first_or_none() is not None
+    )).first_or_none()
+    return cita is not None
 
 async def create_cita(data: CitaCreate, tenant_id: str) -> Cita:
     duracion_parameter = await get_office_config_by_name('duracion_cita_minutos', tenant_id);
