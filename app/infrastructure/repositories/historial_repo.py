@@ -120,25 +120,69 @@ def presign_upload(body: PresignReq):
     except Exception as e:
         raise HTTPException(500, f'presigned error: {e}')
 
-    
-async def register_image(body: RegisterImageReq, tenant_id: str):
-    img = ImageAsset(
-        tenant_id=PydanticObjectId(tenant_id),
-        paciente_id=PydanticObjectId(body.pacienteId),
-        historial_id=PydanticObjectId(body.historialId),
-        entrada_id=body.entradaId,
-        bucket=settings.S3_BUCKET,
-        key=body.key,
-        content_type=body.originalType or ('application/octet-stream' if body.aesKeyB64 else 'image/webp'),
-        size=body.size or 0,
-        width=body.width,
-        height=body.height,
-        preview_data_url=body.previewDataUrl,
-        crypto=None if not (body.aesKeyB64 and body.ivB64) else {'key_b64':body.aesKeyB64, 'iv_b64': body.ivB64}
-    )
 
-    await img.insert()
-    return {'ok':True, 'imgeId': str(img.id), 'key': img.key}
+    
+from beanie import PydanticObjectId
+from beanie.operators import And, ElemMatch
+from fastapi import HTTPException
+from app.core.db import client
+from app.core.config import settings
+from app.core.exceptions import raise_not_found
+from app.infrastructure.schemas.historial import HistorialClinico, ImageAsset
+
+async def register_image(body: RegisterImageReq, tenant_id: str):
+    # Validaciones básicas
+    if not body.historialId or not body.pacienteId or not body.entradaId:
+        raise HTTPException(400, "Faltan identificadores (historialId, pacienteId, entradaId)")
+
+    tenant_oid    = PydanticObjectId(tenant_id)
+    historial_oid = PydanticObjectId(body.historialId)
+    paciente_oid  = PydanticObjectId(body.pacienteId)
+    entrada_id    = body.entradaId  # string (coincide con Entrada.id)
+
+    async with await client.start_session() as s:
+        async with s.start_transaction():
+            # 1) Insertar el asset (queda vinculado por contexto)
+            img = ImageAsset(
+                tenant_id=tenant_oid,
+                paciente_id=paciente_oid,
+                historial_id=historial_oid,   # lo marcamos ya aquí
+                entrada_id=entrada_id,        # string del embedded
+                bucket=settings.S3_BUCKET,
+                key=body.key,
+                content_type=body.originalType or ('application/octet-stream' if body.aesKeyB64 else 'image/webp'),
+                size=body.size or 0,
+                width=body.width,
+                height=body.height,
+                preview_data_url=body.previewDataUrl,
+                crypto=None if not (body.aesKeyB64 and body.ivB64) else {
+                    "key_b64": body.aesKeyB64,
+                    "iv_b64":  body.ivB64,
+                },
+            )
+            inserted = await img.insert(session=s)
+
+            # 2) Filtro con $elemMatch para ubicar la entrada por su id dentro del array
+            q = And(
+                HistorialClinico.tenant_id == tenant_oid,
+                HistorialClinico.id == historial_oid,
+                ElemMatch(HistorialClinico.entradas, {"id": entrada_id}),
+            )
+
+            # 3) $push posicional sobre esa entrada: entradas.$.imagenes
+            upd = await HistorialClinico.find(q).update(
+                {"$push": {"entradas.$.imagenes": inserted.key}},
+                session=s,
+            )
+
+            print('count mod', upd.modified_count)
+            if not upd.modified_count:
+                # (opcional) revertir el asset para consistencia fuerte
+                await inserted.delete(session=s)
+                raise raise_not_found("Historial o entrada no encontrados para adjuntar la imagen")
+
+    return upd
+
 
 def signed_get(key: str):
     try:

@@ -53,7 +53,7 @@ class Entrada(BaseModel):
     evolucionText: str
 
     # Referencias a imágenes (ids de ImageAsset)
-    imagenes: List[PydanticObjectId] = Field(default_factory=list)
+    imagenes: List[str] = Field(default_factory=list)
 
 class HistorialClinico(Document):
     paciente_id: PydanticObjectId
