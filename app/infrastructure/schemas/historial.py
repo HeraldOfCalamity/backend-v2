@@ -6,6 +6,26 @@ from pydantic import BaseModel, Field
 
 from app.shared.utils import get_utc_now
 
+NerLabel = Literal[
+    "SYMPTOM","PAIN_QUALITY","PAIN_INTENSITY","BODY_PART","MOVEMENT",
+    "FUNCTIONAL_LIMITATION","DIAGNOSIS","TREATMENT","EXERCISE","FREQUENCY",
+    "SCALE","MEASURE","DURATION","ROM","LATERALITY","TEST"
+]
+
+class NerSpan(BaseModel):
+    label: NerLabel | str
+    text: str
+    start: int
+    end: int
+    norm: Optional[str] = None
+    source: Literal["rules","ml"] = "rules"
+    confidence: Optional[float] = None
+
+class SectionNer(BaseModel):
+    # secciones de Anamnesis
+    section: Literal["antPersonales","antfamiliares","condActual","intervencionClinica"]
+    ents: List[NerSpan] = Field(default_factory=list)
+
 class CryptoMeta(BaseModel):
     alg: Literal['AES-GCM'] = 'AES-GCM'
     key_b64: Optional[str] = None
@@ -54,6 +74,7 @@ class Entrada(BaseModel):
 
     # Referencias a imágenes (ids de ImageAsset)
     imagenes: List[str] = Field(default_factory=list)
+    ner: List[NerSpan] = Field(default_factory=list)
 
 class HistorialClinico(Document):
     paciente_id: PydanticObjectId
@@ -64,6 +85,7 @@ class HistorialClinico(Document):
     intervencionClinica: str
     entradas: List[Entrada] = Field(default_factory=list)
     createdAt: datetime = Field(default_factory=get_utc_now)
+    ner_sections: List[SectionNer] = Field(default_factory=list)
 
     class Settings:
         name = 'historiales'

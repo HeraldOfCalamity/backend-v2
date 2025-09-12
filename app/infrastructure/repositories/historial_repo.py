@@ -4,12 +4,13 @@ from beanie.operators import And
 import boto3
 from botocore.config import Config as BotoConfig
 from fastapi import HTTPException
+from app.application.services.ner_service import extract_ner_spans, spans_to_models
 from app.core.config import settings
 from app.core.db import client
 
 from app.core.exceptions import raise_duplicate_entity, raise_not_found
 from app.domain.entities.historial_entity import EntradaAdd, HistorialCreate, PresignReq, RegisterImageReq, UpdateHistorial
-from app.infrastructure.schemas.historial import Entrada, HistorialClinico, ImageAsset
+from app.infrastructure.schemas.historial import Entrada, HistorialClinico, ImageAsset, SectionNer
 
 s3 = boto3.client(
     's3',
@@ -41,13 +42,26 @@ async def create_historial(data: HistorialCreate, tenant_id: str) -> HistorialCl
     if historial:
         raise raise_duplicate_entity('Ya existe un historial para el paciente')
     
+    cond_spans = spans_to_models(extract_ner_spans(data.condActual))
+    intv_spans = spans_to_models(extract_ner_spans(data.intervencionClinica))
+    antf_spans = spans_to_models(extract_ner_spans(data.antFamiliares))
+    antp_spans = spans_to_models(extract_ner_spans(data.antPersonales))
+
+    sections = [
+        SectionNer(section="condActual", ents=cond_spans),
+        SectionNer(section="intervencionClinica", ents=intv_spans),
+        SectionNer(section="antfamiliares", ents=antf_spans),
+        SectionNer(section="antPersonales", ents=antp_spans),
+    ]
+
     new_historial = HistorialClinico(
         antfamiliares=data.antFamiliares,
         antPersonales=data.antPersonales,
         condActual=data.condActual,
         intervencionClinica=data.condActual,
         paciente_id=PydanticObjectId(data.paciente_id),
-        tenant_id=PydanticObjectId(tenant_id)
+        tenant_id=PydanticObjectId(tenant_id),
+        ner_sections=sections
     )
 
     created = await new_historial.insert()
@@ -67,6 +81,31 @@ async def update_historial_anamnesis(updateData: UpdateHistorial, tenant_id: str
     if updateData.antPersonales:
         historial.antPersonales = updateData.antPersonales
 
+    cond_spans = spans_to_models(extract_ner_spans(updateData.condActual))
+    intv_spans = spans_to_models(extract_ner_spans(updateData.intervencionClinica))
+    if updateData.antFamiliares:
+        antf_spans = spans_to_models(extract_ner_spans(updateData.antFamiliares))
+    
+    if updateData.antPersonales:
+        antp_spans = spans_to_models(extract_ner_spans(updateData.antPersonales))
+
+    historial.ner_sections = [
+        SectionNer(section="condActual", ents=cond_spans),
+        SectionNer(section="intervencionClinica", ents=intv_spans)
+    ]
+
+    if updateData.antFamiliares:
+        historial.ner_sections.append(SectionNer(
+            section='antfamiliares',
+            ents=antf_spans
+        ))
+    
+    if updateData.antPersonales:
+        historial.ner_sections.append(SectionNer(
+            section='antPersonales',
+            ents=antp_spans
+        ))
+
     updated = await historial.save()
 
     return updated
@@ -77,22 +116,41 @@ async def add_entrada(historial_id: str, tenant_id: str, data: EntradaAdd) -> Hi
     async with await client.start_session() as s:
         async with s.start_transaction():
             hist = await HistorialClinico.get(historial_id, session=s)
-            if not hist:
+            if not hist or str(hist.tenant_id) != tenant_id:
                 raise HTTPException(404, "Historial no encontrado")
 
+            # 1) Texto base para NER (puedes separar por campo si quieres ner por subcampo)
+            txt_rec = (data.recursosTerapeuticos or "").strip()
+            txt_evo = (data.evolucionText or "").strip()
+            ner_spans_dicts = extract_ner_spans(f"{txt_rec}\n{txt_evo}".strip())
+
+            # 2) Construimos la entrada con NER
             entrada = Entrada(
-                recursosTerapeuticos=data.recursosTerapeuticos,
-                evolucionText=data.evolucionText,
-                imagenes=[PydanticObjectId(id) for id in data.imageIds]
+                recursosTerapeuticos=txt_rec,
+                evolucionText=txt_evo,
+                imagenes=[PydanticObjectId(id) for id in data.imageIds],   # si cambiaste a keys, ajusta aquí
+                ner=[NerSpan(
+                    label=s["label"],
+                    text=s["text"],
+                    start=int(s["start"]),
+                    end=int(s["end"]),
+                    norm=s.get("norm"),
+                    source="rules",
+                    confidence=None
+                ) for s in ner_spans_dicts]
             )
+
+            # 3) Guardar en el historial
             hist.entradas.append(entrada)
             updated = await hist.save(session=s)
 
+            # 4) Si te pasan imageIds (ids de ImageAsset), vincúlalas a esta entrada
             if data.imageIds:
                 await ImageAsset.find(ImageAsset.id.in_(data.imageIds)).update(
                     {"$set": {"historial_id": hist.id, "entrada_id": entrada.id}},
                     session=s
                 )
+
     return updated
 
 def presign_upload(body: PresignReq):
