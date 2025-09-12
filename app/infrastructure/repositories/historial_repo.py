@@ -10,7 +10,7 @@ from app.core.db import client
 
 from app.core.exceptions import raise_duplicate_entity, raise_not_found
 from app.domain.entities.historial_entity import EntradaAdd, HistorialCreate, PresignReq, RegisterImageReq, UpdateHistorial
-from app.infrastructure.schemas.historial import Entrada, HistorialClinico, ImageAsset, SectionNer
+from app.infrastructure.schemas.historial import Entrada, HistorialClinico, ImageAsset, NerSpan, SectionNer
 
 s3 = boto3.client(
     's3',
