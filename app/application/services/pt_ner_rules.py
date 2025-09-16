@@ -11,7 +11,7 @@ SYMPTOMS = [
     "dolor", "rigidez", "pesadez", "parestesias", "hormigueo", "calambres",
     "debilidad", "inflamación", "edema", "inestabilidad", "bloqueo", "chirridos",
     "crepitación", "limitación", "fatiga", "contractura", "espasmo",
-    "mareos", "cefalea", "vértigo"
+    "mareos", "cefalea", "vértigo", 
 ]
 
 PAIN_QUALITY = [

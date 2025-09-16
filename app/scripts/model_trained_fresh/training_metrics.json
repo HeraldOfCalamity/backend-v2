@@ -1,0 +1,25 @@
+{
+  "labels": [
+    "BODY_PART",
+    "DIAGNOSIS",
+    "DURATION",
+    "EXERCISE",
+    "FREQUENCY",
+    "FUNCTIONAL_LIMITATION",
+    "LATERALITY",
+    "MEASURE",
+    "MOVEMENT",
+    "PAIN_INTENSITY",
+    "PAIN_QUALITY",
+    "ROM",
+    "SCALE",
+    "SYMPTOM",
+    "TEST",
+    "TREATMENT"
+  ],
+  "n_train": 192,
+  "n_dev": 48,
+  "ents_p": 0.34659685863874345,
+  "ents_r": 0.5817223198594025,
+  "ents_f": 0.4343832020997375
+}
