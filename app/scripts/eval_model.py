@@ -23,7 +23,6 @@ def spans_from_doc(doc) -> List[Tuple[int,int,str]]:
     return out
 
 def score(preds: List[List[Tuple[int,int,str]]], golds: List[List[Tuple[int,int,str]]]) -> Dict[str, float]:
-    # exact match on (start,end,label)
     tp = 0
     fp = 0
     fn = 0

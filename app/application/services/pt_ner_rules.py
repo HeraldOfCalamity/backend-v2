@@ -148,11 +148,11 @@ def build_pt_pipeline() -> Language:
     if not Span.has_extension("norm_label"):
         Span.set_extension("norm_label", default=None)
 
-    # EntityRuler: al usar patrones por tokens, emplea Matcher (sin W012)
+    
     ruler = nlp.add_pipe(
         "entity_ruler",
         config={
-            "overwrite_ents": False,  # puedes poner True si quieres que reglas reemplacen overlaps
+            "overwrite_ents": False,  
             "validate": True
         }
     )
