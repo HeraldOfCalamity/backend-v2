@@ -9,9 +9,9 @@ from pydantic import BaseModel, Field, field_validator, model_validator, validat
 class Cita(Document):
     tenant_id: PydanticObjectId
     paciente_id: PydanticObjectId
-    paciente_name: str = Field(default=None)
+    paciente_name: Optional[str] = Field(default=None)
+    especialista_name: Optional[str] = Field(default=None)
     especialista_id: PydanticObjectId
-    especialista_name: str = Field(default=None)
     especialidad_id: PydanticObjectId
     fecha_inicio: datetime
     fecha_fin: datetime

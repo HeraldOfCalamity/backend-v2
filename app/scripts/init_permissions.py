@@ -45,6 +45,7 @@ PERMISSIONS = [
     {"name": "read_appointments", "description": "Listar citas"},
     {"name": "cancel_appointments", "description": "Cancelar citas"},
     {"name": "confirm_appointments", "description": "Confirmar citas"},
+    {"name": "attend_appointments", "description": "Atender citas"},
 
     {"name": "create_tratamientos", "description": "Crear Tratamientos"},
     {"name": "update_tratamientos", "description": "Editar Tratamientos"},

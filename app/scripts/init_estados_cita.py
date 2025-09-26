@@ -7,10 +7,9 @@ from app.infrastructure.schemas.estadoCita import EstadoCita
 
 ESTADOS = [
     { "estado_id": 0, "nombre": "pendiente", "descripcion": "Esperando confirmación" },
-    { "estado_id": 1, "nombre": "confirmada", "descripcion": "Confirmada por el especialista" },
-    { "estado_id": 2, "nombre": "cancelada", "descripcion": "Cancelada por paciente o especialista" },
-    { "estado_id": 3, "nombre": "rechazada", "descripcion": "Rechazada por el especialista" },
-    { "estado_id": 4, "nombre": "finalizada", "descripcion": "La cita ya se atendió" }
+    { "estado_id": 1, "nombre": "confirmada", "descripcion": "Cita confirmada" },
+    { "estado_id": 2, "nombre": "cancelada", "descripcion": "Cita Cancelada" },
+    { "estado_id": 3, "nombre": "atendida", "descripcion": "Cita Atendida" },
 ]
 async def get_tennant_id() -> PydanticObjectId:
     office = await get_benedetta_office()

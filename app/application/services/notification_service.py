@@ -4,7 +4,7 @@ from app.application.websockets.manager import manager
 
 async def notificar_evento_cita(
     tenant_id: str,
-    action: Literal["created","confirmed","canceled","finished"],
+    action: Literal["created","confirmed","canceled","attended"],
     payload: dict,  # Idealmente CitaOut serializable
     especialista_id: str | None = None
 ):

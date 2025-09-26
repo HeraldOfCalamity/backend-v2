@@ -5,7 +5,7 @@ from app.core.auth_utils import get_user_and_tenant
 from app.core.exceptions import raise_not_found
 from app.core.security import require_permission
 from app.domain.entities.cita_entity import CitaCreate, CitaOut
-from app.infrastructure.repositories.cita_repo import cancel_cita, cita_to_out, confirm_cita, create_cita, get_citas_by_especialista_id, get_citas_by_paciente_id, get_citas_by_tenant_id, send_cita_email
+from app.infrastructure.repositories.cita_repo import cancel_cita, cita_to_out, confirm_cita, create_cita, get_citas_by_especialista_id, get_citas_by_paciente_id, get_citas_by_tenant_id, send_cita_email, set_attended_cita
 from app.infrastructure.repositories.role_repo import get_role_by_id
 from app.shared.dto.mailData_dto import MailData
 
@@ -98,3 +98,17 @@ async def cancelar_cita(cita_id: str, ctx=Depends(get_user_and_tenant)):
     )
     await send_cita_email('confirmacion', confirmed)
     return cita_out
+
+@router.put('/attend/{cita_id}', response_model=CitaOut, dependencies=[Depends(require_permission('attend_appointments'))])
+async def atender_cita(cita_id: str, ctx=Depends(get_user_and_tenant)):
+    user, tenant_id = ctx
+    attended = await set_attended_cita(cita_id, tenant_id);
+    cita_out = await cita_to_out(attended)
+    await notificar_evento_cita(
+        tenant_id=tenant_id,
+        action='attended',
+        payload=cita_out.model_dump(),
+        especialista_id=str(attended.especialista_id)       
+    )
+    return cita_out
+

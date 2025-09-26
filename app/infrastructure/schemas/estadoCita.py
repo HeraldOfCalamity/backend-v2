@@ -6,8 +6,7 @@ class ESTADOS_CITA(Enum):
     pendiente=0
     confirmada=1
     cancelada=2
-    rechazada=3
-    finalizada=4
+    atendida=3
 
 class EstadoCita(Document):
     estado_id: int = Field(..., unique=True)

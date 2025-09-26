@@ -22,10 +22,10 @@ from app.shared.dto.mailData_dto import MailData, ReceiverData
 from app.shared.utils import get_mail_html
 
 async def get_cita_by_id(cita_id: str, tenant_id: str) -> Cita:
-    return await Cita.find_one(And(
+    return await Cita.find(And(
         Cita.tenant_id == PydanticObjectId(tenant_id),
         Cita.id == PydanticObjectId(cita_id)
-    ))
+    )).first_or_none()
 
 async def get_citas_by_paciente_id(paciente_id: str, tenant_id: str) -> list[Cita]:
     return await Cita.find(And(
@@ -151,6 +151,18 @@ async def confirm_cita(cita_id: str, tenant_id: str) -> Cita:
 
     cita_guardada = await cita.save()
     # await notificar_evento_cita(estado.nombre, f'{cita_guardada.id} {cita_guardada.fecha_inicio} {cita_guardada.fecha_fin}')
+    return cita_guardada
+
+async def set_attended_cita(cita_id: str, tenant_id: str) -> Cita:
+    cita = await get_cita_by_id(cita_id, tenant_id);
+
+    if not cita:
+        raise raise_not_found('Cita')
+    
+    cita.estado_id = ESTADOS_CITA.atendida.value
+
+    cita_guardada = await cita.save()
+
     return cita_guardada
 
 async def cancel_cita(cita_id: str, tenant_id: str, user_id: str) -> Cita:
