@@ -1,21 +1,20 @@
-from enum import Enum
+# notification_service.py
 from typing import Literal
-
-from app.infrastructure.notifiers.email_notifier import send_event_email
-from app.infrastructure.notifiers.push_notifier import send_event_push
-
-
-class NotificationType(str, Enum):
-    EMAIL = 'email'
-    PUSH = 'push'
+from app.application.websockets.manager import manager
 
 async def notificar_evento_cita(
-    evento: str,
-    message: str,
-    tipo: list[NotificationType] = [NotificationType.EMAIL, NotificationType.PUSH]
+    tenant_id: str,
+    action: Literal["created","confirmed","canceled","finished"],
+    payload: dict,  # Idealmente CitaOut serializable
+    especialista_id: str | None = None
 ):
-    if NotificationType.EMAIL in tipo:
-        await send_event_email(evento, message)
-
-    if NotificationType.PUSH in tipo:
-        await send_event_push(evento, message)
+    message = {
+        "entity": "cita",
+        "action": action,
+        "data": payload
+    }
+    # broadcast a todo el tenant
+    await manager.broadcast(f"tenant:{tenant_id}", message)
+    # y también al canal del especialista (si aplica)
+    if especialista_id:
+        await manager.broadcast(f"tenant:{tenant_id}:esp:{especialista_id}", message)

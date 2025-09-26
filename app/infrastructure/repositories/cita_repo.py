@@ -1,9 +1,9 @@
 from datetime import datetime, timedelta
 from string import Template
-from typing import Literal, Tuple
+from typing import Literal, Optional, Tuple
 from beanie import PydanticObjectId
 from pydantic import EmailStr
-from app.application.services.notification_service import notificar_evento_cita
+# from app.application.services.notification_service import notificar_evento_cita
 from app.core.exceptions import raise_duplicate_entity, raise_forbidden, raise_not_found
 from app.domain.entities.cita_entity import CitaCreate, CitaOut
 from app.infrastructure.notifiers.email_notifier import send_sendgrid_email
@@ -33,16 +33,29 @@ async def get_citas_by_paciente_id(paciente_id: str, tenant_id: str) -> list[Cit
         Cita.paciente_id == PydanticObjectId(paciente_id)
     )).to_list()
 
-async def get_citas_by_especialista_id(especialista_id: str, tenant_id: str) -> list[Cita]:
-    citas = await Cita.find(And(
+async def get_citas_by_especialista_id(
+    especialista_id: str,
+    tenant_id: str,
+    start: Optional[datetime] = None,
+    end: Optional[datetime] = None,
+    limit: int = 200,
+    skip: int = 0,
+):
+    filtros = [
         Cita.tenant_id == PydanticObjectId(tenant_id),
         Cita.especialista_id == PydanticObjectId(especialista_id)
-    )).to_list()
-    citas_espcialista = await Cita.find(Cita.especialista_id == PydanticObjectId(especialista_id)).to_list()
-    return await Cita.find(And(
-        Cita.tenant_id == PydanticObjectId(tenant_id),
-        Cita.especialista_id == PydanticObjectId(especialista_id)
-    )).to_list()
+    ]
+    if start:
+        filtros.append(GTE(Cita.fecha_inicio, start))
+    if end:
+        filtros.append(LTE(Cita.fecha_inicio, end))
+
+    cursor = Cita.find(And(*filtros)).sort(-Cita.fecha_inicio)  # más recientes primero
+    if skip:
+        cursor = cursor.skip(skip)
+    if limit:
+        cursor = cursor.limit(limit)
+    return await cursor.to_list()
 
 async def exists_cita_same_day(paciente_id: str, especialista_id: str, fecha: datetime, tenant_id: str) -> bool:
     inicio_dia=fecha.replace(hour=0, minute=0, second=0, microsecond=0)
@@ -71,11 +84,13 @@ async def create_cita(data: CitaCreate, tenant_id: str) -> Cita:
     duracion_parameter = await get_office_config_by_name('duracion_cita_minutos', tenant_id);
     duracion = timedelta(minutes=float(duracion_parameter.value))
     fecha_fin = data.fecha_inicio + duracion
+    paciente = await get_paciente_profile_by_id(data.paciente_id, tenant_id)
 
-    if not await get_paciente_by_id(data.paciente_id, tenant_id):
+    if not paciente:
         raise_not_found('Paciente')
 
-    if not await get_especialista_by_id(data.especialista_id, tenant_id):
+    especialista = await get_especialista_profile_by_id(data.especialista_id, tenant_id)
+    if not especialista:
         raise_not_found('Especialista')
 
     if not await get_especialidad_by_id(data.especialidad_id, tenant_id):
@@ -98,6 +113,8 @@ async def create_cita(data: CitaCreate, tenant_id: str) -> Cita:
     cita = Cita(
         paciente_id=PydanticObjectId(data.paciente_id),
         especialista_id=PydanticObjectId(data.especialista_id),
+        paciente_name=f'{paciente.user.name} {paciente.user.lastname}',
+        especialista_name=f'{especialista.user.name} {especialista.user.lastname}',
         fecha_inicio=data.fecha_inicio,
         fecha_fin=fecha_fin,
         duration_minutes=int(duracion_parameter.value),
@@ -133,7 +150,7 @@ async def confirm_cita(cita_id: str, tenant_id: str) -> Cita:
     cita.estado_id=estado.estado_id
 
     cita_guardada = await cita.save()
-    await notificar_evento_cita(estado.nombre, f'{cita_guardada.id} {cita_guardada.fecha_inicio} {cita_guardada.fecha_fin}')
+    # await notificar_evento_cita(estado.nombre, f'{cita_guardada.id} {cita_guardada.fecha_inicio} {cita_guardada.fecha_fin}')
     return cita_guardada
 
 async def cancel_cita(cita_id: str, tenant_id: str, user_id: str) -> Cita:
@@ -168,9 +185,9 @@ async def cancel_cita(cita_id: str, tenant_id: str, user_id: str) -> Cita:
     return cita_guardada
 
 async def cita_to_out(cita: Cita) -> CitaOut:
-    paciente = await get_paciente_profile_by_id(str(cita.paciente_id), str(cita.tenant_id))
+    # paciente = await get_paciente_profile_by_id(str(cita.paciente_id), str(cita.tenant_id))
     
-    especialista = await get_especialista_profile_by_id(str(cita.especialista_id), str(cita.tenant_id))
+    # especialista = await get_especialista_profile_by_id(str(cita.especialista_id), str(cita.tenant_id))
     especialidad = await get_especialidad_by_id(str(cita.especialidad_id), str(cita.tenant_id))
     estado = await get_estado_cita_by_id(cita.estado_id, str(cita.tenant_id))
     
@@ -180,11 +197,11 @@ async def cita_to_out(cita: Cita) -> CitaOut:
 
     cita_out = CitaOut(
         id=str(cita.id),
-        paciente=f'{paciente.user.name} {paciente.user.lastname}',
+        paciente=str(cita.paciente_id),
+        pacienteName=cita.paciente_name if cita.paciente_name else '',
         duration_minutes=cita.duration_minutes,
-        pacienteProfile=paciente,
-        especialidad=especialidad_to_out(especialidad) if especialidad else None,
-        especialista=f'{especialista.user.name} {especialista.user.lastname}',
+        especialidad=especialidad.nombre,
+        especialista=cita.especialista_name if cita.especialista_name else '',
         estado=estado_cita_to_out(estado) if estado else None,
         fecha_fin=cita.fecha_fin,
         fecha_inicio=cita.fecha_inicio,

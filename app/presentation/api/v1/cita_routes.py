@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends
 
+from app.application.services.notification_service import notificar_evento_cita
 from app.core.auth_utils import get_user_and_tenant
 from app.core.exceptions import raise_not_found
 from app.core.security import require_permission
@@ -17,6 +18,12 @@ async def agendar_cita(data: CitaCreate, ctx=Depends(get_user_and_tenant)):
     cita = await create_cita(data, tenant_id)
     cita_out = await cita_to_out(cita)
     # role = await get_role_by_id(str(user.role), tenant_id)
+    await notificar_evento_cita(
+        tenant_id=tenant_id,
+        action='created',
+        payload=cita_out.model_dump(),
+        especialista_id=str(cita.especialista_id)
+    )
     await send_cita_email('reserva', cita)
     return cita_out
 
@@ -69,6 +76,12 @@ async def cancelar_cita(cita_id: str, ctx=Depends(get_user_and_tenant)):
     user, tenant_id=ctx
     canceled = await cancel_cita(cita_id, tenant_id, str(user.id))
     cita_out = await cita_to_out(canceled)
+    await notificar_evento_cita(
+        tenant_id=tenant_id,
+        action='canceled',
+        payload=cita_out.model_dump(),
+        especialista_id=str(canceled.especialista_id)
+    )
     await send_cita_email('cancelacion', canceled)
     return cita_out
 
@@ -77,5 +90,11 @@ async def cancelar_cita(cita_id: str, ctx=Depends(get_user_and_tenant)):
     user, tenant_id=ctx
     confirmed = await confirm_cita(cita_id, tenant_id)
     cita_out = await cita_to_out(confirmed)
+    await notificar_evento_cita(
+        tenant_id=tenant_id,
+        action='confirmed',
+        payload=cita_out.model_dump(),
+        especialista_id=str(confirmed.especialista_id)
+    )
     await send_cita_email('confirmacion', confirmed)
     return cita_out

@@ -1,4 +1,5 @@
 from datetime import timedelta
+from typing import Any, Dict
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from passlib.context import CryptContext
@@ -67,4 +68,16 @@ def require_permission(permission_name: str):
         return user
     
     return permission_dependency
+
+def decode_access_token(token: str) -> Dict[str, Any]:
+    try:
+        payload = jwt.decode(
+            token,
+            settings.SECRET_KEY,
+            algorithms=[settings.ALGORITHM],
+            options={"verify_aud": False},
+        )
+        return payload
+    except JWTError as e:
+        raise ValueError("Invalid token") from e
 

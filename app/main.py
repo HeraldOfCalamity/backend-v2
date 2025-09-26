@@ -1,4 +1,5 @@
 from fastapi.staticfiles import StaticFiles
+from app.application.websockets.routes import ws_router
 from app.core.config import settings
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
@@ -39,5 +40,6 @@ app.include_router(officeConfig_routes.router)
 app.include_router(cita_routes.router)
 app.include_router(tratamiento_routes.router)
 app.include_router(historial_routes.router)
+app.include_router(ws_router)
 
 app.mount('/static', StaticFiles(directory='static'))
