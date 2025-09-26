@@ -7,7 +7,7 @@ from fastapi import FastAPI
 
 from app.core.db import init_db
 from app.core.exceptions import internal_errror_handler
-from app.presentation.api.v1 import auth_routes, cita_routes, especialidad_routes, especialista_routes, historial_routes, officeConfig_routes, paciente_routes, permission_routes, role_routes, tratamiento_routes, user_routes
+from app.presentation.api.v1 import auth_routes, cita_routes, especialidad_routes, especialista_routes, historial_routes, officeConfig_routes, paciente_routes, permission_routes, role_routes, tratamiento_routes, user_routes, reportes_citas_routes
 
 
 @asynccontextmanager
@@ -41,5 +41,6 @@ app.include_router(cita_routes.router)
 app.include_router(tratamiento_routes.router)
 app.include_router(historial_routes.router)
 app.include_router(ws_router)
+app.include_router(reportes_citas_routes.router)
 
 app.mount('/static', StaticFiles(directory='static'))
