@@ -16,6 +16,9 @@ class Settings(BaseSettings):
     S3_ACCESS_KEY_ID: str = Field(env='S3_ACCESS_KEY_ID')
     S3_SECRET_ACCESS_KEY: str = Field(env='S3_SECRET_ACCESS_KEY')
     ALLOWED_ORIGIN: str = Field(env='ALLOWED_ORIGIN')
+    SEED_ON_START: str = Field(default='1', env='SEED_ON_START')
+    DISABLE_SEED_ON_START: str = Field(default='0', env='DISABLE_SEED_ON_START')
+    
 
     class Config:
         env_file = ".env"

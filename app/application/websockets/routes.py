@@ -22,7 +22,7 @@ async def _auth_from_ws(websocket: WebSocket):
 
     try:
         payload = decode_access_token(token)
-        log.info("WS token payload: %s", payload)  # <-- LOGEAMOS para ver claims
+        # log.info("WS token payload: %s", payload)  # <-- LOGEAMOS para ver claims
         tenant_id = payload.get("tenant_id")
         user_id = payload.get("sub") or payload.get("user_id")
         if not tenant_id or not user_id:
