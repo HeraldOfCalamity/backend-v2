@@ -11,7 +11,8 @@ SYMPTOMS = [
     "dolor", "rigidez", "pesadez", "parestesias", "hormigueo", "calambres",
     "debilidad", "inflamación", "edema", "inestabilidad", "bloqueo", "chirridos",
     "crepitación", "limitación", "fatiga", "contractura", "espasmo",
-    "mareos", "cefalea", "vértigo", 
+    "mareos", "cefalea", "vértigo", 'eritema', 'lesiones', 'pustulas', 'cicatrices',
+    'hiperpigmentación'
 ]
 
 PAIN_QUALITY = [
@@ -34,7 +35,7 @@ BODY_PARTS = [
     "tendón de aquiles","rotuliano","tendón rotuliano",
     "manguito rotador","supraespinoso","infraespinoso","subescapular",
     "bíceps","tríceps","isquiotibiales","cuádriceps","glúteos","gemelos",
-    "banda iliotibial","fascia plantar"
+    "banda iliotibial","fascia plantar",'cara', 'rostro'
 ]
 
 MOVEMENTS = [
@@ -55,13 +56,15 @@ DIAGNOSES = [
     "tendinitis rotuliana","tendinopatía rotuliana",
     "tendinopatía del manguito rotador","impingement subacromial","síndrome subacromial",
     "epicondilitis lateral","epitrocleitis","fascitis plantar",
-    "esguince de tobillo","esguince","ruptura del lca","lesión del lca"
+    "esguince de tobillo","esguince","ruptura del lca","lesión del lca", 'rosácea'
 ]
 
 TREATMENTS = [
     "tens","electroterapia","ultrasonido","crioterapia","termoterapia",
     "masoterapia","terapia manual","movilización articular","manipulación",
-    "punción seca","kinesiotaping","taping","vendaje neuromuscular"
+    "punción seca","kinesiotaping","taping","vendaje neuromuscular", 'isotretinoina',
+    'skincare', 'dermodepilador', 'serum', 'peeling', 'ácido mandélico',
+    'ácido retinoico', 'ácido nanoretinoide'
 ]
 
 EXERCISES = [
