@@ -39,7 +39,10 @@ async def update_especialista(especialista_id: str, data: EspecialistaUpdate, te
     especialista.disponibilidades = [disp.model_dump() for disp in data.disponibilidades]
 
     if data.image:
-        especialista.image = save_base_64_image_local(data.image, 'especialistas')
+        if data.image.startswith('/static/'):
+            especialista_image = os.path.join("static", data.image.split("/static/")[-1])
+        else:
+            especialista.image = save_base_64_image_local(data.image, 'especialistas')
     else:
         especialista.image = None
 
