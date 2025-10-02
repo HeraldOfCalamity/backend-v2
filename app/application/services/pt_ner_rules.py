@@ -56,7 +56,8 @@ DIAGNOSES = [
     "tendinitis rotuliana","tendinopatía rotuliana",
     "tendinopatía del manguito rotador","impingement subacromial","síndrome subacromial",
     "epicondilitis lateral","epitrocleitis","fascitis plantar",
-    "esguince de tobillo","esguince","ruptura del lca","lesión del lca", 'rosácea'
+    "esguince de tobillo","esguince","ruptura del lca","lesión del lca", 'rosácea',
+    'artritis', 'artrosis'
 ]
 
 TREATMENTS = [
