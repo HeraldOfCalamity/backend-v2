@@ -1,13 +1,13 @@
 # app/main.py
 import asyncio
 import logging
-import os
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
+from app.application.services.reminder_service import reminder_scheduler_loop
 from app.core.db import init_db
 from app.core.exceptions import internal_errror_handler
 from app.core.config import settings
@@ -28,7 +28,6 @@ from app.presentation.api.v1 import (
 from app.application.websockets.routes import ws_router
 
 # 👇 importante: orquestador del seed
-from app.scripts.seed_all import seed_all
 
 # Asegura que INFO se imprima (uvicorn maneja logger propio,
 # pero así nos garantizamos ver los logger.info/exception del seed)
@@ -42,27 +41,16 @@ async def lifespan(app: FastAPI):
     print("\nConectando a la base de datos\n")
 
     # Entrega el control a FastAPI (para health check OK)
-    yield
-
-    # Post-startup: programa el seed en segundo plano
+    reminders_task = asyncio.create_task(reminder_scheduler_loop())
     try:
-        seed_on = settings.SEED_ON_START == "1"
-        seed_disabled = settings.DISABLE_SEED_ON_START == "1"
-        print('entra aqui')
-        print('seedon',seed_on)
-        print('entra aqui',seed_disabled)
-        if seed_on and not seed_disabled:
-            print('entra aqui')
-            logger.info("Programando seed_all() en segundo plano…")
-            asyncio.create_task(seed_all())
-        else:
-            logger.info(
-                "Seed deshabilitado (SEED_ON_START=%s, DISABLE_SEED_ON_START=%s)",
-                os.getenv("SEED_ON_START", "1"),
-                os.getenv("DISABLE_SEED_ON_START", "0"),
-            )
-    except Exception as e:
-        logger.exception("No se pudo programar seed_all(): %s", e)
+        yield
+    finally:
+        reminders_task.cancel()
+        try:
+            await reminders_task
+        except asyncio.CancelledError:
+            pass
+    
 
 app = FastAPI(lifespan=lifespan)
 

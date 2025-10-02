@@ -11,6 +11,8 @@ OFFICE_CONFIGS = [
     # {"name":"confirmacion_automatica_admin", "value":'1'},
     {"name":"correos_encendidos", "value":'1'},
     {"name":"restringir_atencion_horario", "value":'1'},
+    {"name":"auto_cancelacion_habilitada", "value":'0'},
+    {"name": "office_timezone", "value": "America/La_Paz"},
 ]
 
 async def get_tenant_id() -> PydanticObjectId:

@@ -1,3 +1,4 @@
+from zoneinfo import ZoneInfo
 from beanie import PydanticObjectId
 from beanie.operators import And
 from app.core.exceptions import raise_not_found
@@ -29,3 +30,15 @@ def office_config_to_out(office_config: OfficeConfig) -> OfficeConfigOut:
     office_config_dict = office_config.model_dump()
     office_config_dict['id'] = str(office_config.id)
     return OfficeConfigOut(**office_config_dict)
+
+async def is_auto_cancel_enabled(tenant_id: str, default: bool = False) -> bool:
+    oc = await get_office_config_by_name('auto_cancelacion_habilitada', tenant_id)
+    if not oc or oc.value not in ('0', '1'):
+        return default
+    
+    return oc.value == '1'
+
+async def get_office_timezone(tenant_id: str, default_tz: str = 'America/La_Paz') -> ZoneInfo:
+    oc = await get_office_config_by_name('office_timezone', tenant_id)
+    tzname = oc.value if oc and oc.value else default_tz
+    return ZoneInfo(tzname)

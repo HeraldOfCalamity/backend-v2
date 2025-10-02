@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Recordatorio de Cita</title>
+  <style>
+    body {
+      background-color: #fef9fb;
+      font-family: 'Roboto', Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+      color: #333;
+    }
+    .container {
+      max-width: 600px;
+      margin: 40px auto;
+      background: #ffffff;
+      border-radius: 12px;
+      padding: 30px;
+      box-shadow: 0 5px 15px rgba(215, 129, 170, 0.2);
+      border: 1px solid #f3d4e3;
+    }
+    .header {
+      text-align: center;
+      padding-bottom: 10px;
+      border-bottom: 2px solid #d781aa;
+    }
+    h2 {
+      color: #d781aa;
+      margin: 0 0 6px 0;
+      font-size: 22px;
+    }
+    .subtitle {
+      color: #777;
+      font-size: 14px;
+      margin: 0 0 4px 0;
+    }
+    .content {
+      margin-top: 20px;
+      line-height: 1.55;
+      font-size: 15px;
+    }
+    ul {
+      padding-left: 20px;
+      margin: 14px 0;
+    }
+    .cta {
+      margin-top: 20px;
+      text-align: center;
+    }
+    .cta a {
+      display: inline-block;
+      padding: 12px 18px;
+      border-radius: 8px;
+      text-decoration: none;
+      font-weight: 600;
+      background-color: #d781aa;
+      color: #fff !important;
+      border: 1px solid #c06c93;
+    }
+    .cta a:hover {
+      filter: brightness(0.98);
+    }
+    .note {
+      font-size: 13px;
+      color: #666;
+      margin-top: 16px;
+    }
+    .footer {
+      margin-top: 28px;
+      font-size: 12.5px;
+      color: #666;
+      text-align: center;
+      border-top: 1px solid #f0dbe7;
+      padding-top: 16px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h2>🔔 Recordatorio de Cita</h2>
+      <div class="subtitle">Confirmá tu asistencia desde la aplicación</div>
+    </div>
+
+    <div class="content">
+      <p>Hola ${nombre_receptor},</p>
+      <p>Te recordamos tu cita programada:</p>
+      <ul>
+        <li><strong>Especialista:</strong> ${nombre_especialista}</li>
+        <li><strong>Especialidad:</strong> ${nombre_especialidad}</li>
+        <li><strong>Paciente:</strong> ${nombre_paciente}</li>
+        <li><strong>Fecha:</strong> ${fecha}</li>
+        <li><strong>Hora:</strong> ${hora}</li>
+      </ul>
+
+      <p>Por favor, <strong>confirmá</strong> tu asistencia desde la aplicación. Si ya confirmaste, ignorá este mensaje.</p>
+
+      <div class="cta">
+        <a href="${cta_url}" target="_blank" rel="noopener">Abrir la aplicación</a>
+      </div>
+
+      <p class="note">
+        Nota: este recordatorio se envía de forma automática cada cierto intervalo antes de la cita.
+        Si tu consultorio tiene activada la <em>cancelación automática</em>, la cita se cancelará si no se confirma hasta 6 horas antes.
+      </p>
+    </div>
+
+    <div class="footer">
+      — Consultorio ${nombre_consultorio}<br/>
+      Este es un mensaje automático. Por favor, no respondas a este correo.
+    </div>
+  </div>
+</body>
+</html>

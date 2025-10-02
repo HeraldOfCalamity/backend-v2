@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Any, Optional
+from typing import Any, List, Optional
 
 from beanie import Document, PydanticObjectId
 from pymongo import IndexModel, ASCENDING, DESCENDING
@@ -19,6 +19,9 @@ class Cita(Document):
     estado_id: int = Field(default=0)
     motivo: Optional[str] = Field(default=None, max_length=500)
     canceledBy: Optional[PydanticObjectId] = Field(default=None)
+    reminders_sent_marks: List[int] = Field(default_factory=list)  # p.ej. [24, 22, 20, ...]
+    last_reminder_sent_at: Optional[datetime] = Field(default=None)
+    auto_canceled_at: Optional[datetime] = Field(default=None)
 
     class Settings:
         name = "citas"
