@@ -26,6 +26,7 @@ class CitaOut(BaseModel):
     fecha_inicio: datetime
     fecha_fin: datetime
     canceledBy: UserOut | None
+    cancel_motivo: str | None
     duration_minutes: int
     estado: EstadoCitaOut
     motivo: Optional[str]

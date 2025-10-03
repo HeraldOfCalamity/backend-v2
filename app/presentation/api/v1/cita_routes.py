@@ -71,10 +71,10 @@ async def listar_citas_todas_admin(ctx=Depends(get_user_and_tenant)):
     citas = await get_citas_by_tenant_id(tenant_id)
     return [await cita_to_out(c) for c in citas]
 
-@router.put('/cancelar/{cita_id}', response_model=CitaOut, dependencies=[Depends(require_permission('cancel_appointments'))])
-async def cancelar_cita(cita_id: str, ctx=Depends(get_user_and_tenant)):
+@router.put('/cancelar/{cita_id}/{motivo}', response_model=CitaOut, dependencies=[Depends(require_permission('cancel_appointments'))])
+async def cancelar_cita(cita_id: str, motivo: str, ctx=Depends(get_user_and_tenant)):
     user, tenant_id=ctx
-    canceled = await cancel_cita(cita_id, tenant_id, str(user.id))
+    canceled = await cancel_cita(cita_id, tenant_id, str(user.id), motivo)
     cita_out = await cita_to_out(canceled)
     await notificar_evento_cita(
         tenant_id=tenant_id,

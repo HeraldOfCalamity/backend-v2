@@ -191,7 +191,7 @@ async def set_attended_cita(cita_id: str, tenant_id: str) -> Cita:
 
     return cita_guardada
 
-async def cancel_cita(cita_id: str, tenant_id: str, user_id: str) -> Cita:
+async def cancel_cita(cita_id: str, tenant_id: str, user_id: str, motivo: str) -> Cita:
     cita = await Cita.find(And(
         Cita.tenant_id == PydanticObjectId(tenant_id),
         Cita.id == PydanticObjectId(cita_id)
@@ -203,6 +203,9 @@ async def cancel_cita(cita_id: str, tenant_id: str, user_id: str) -> Cita:
     if cita.canceledBy:
         raise raise_duplicate_entity('La cita ya se encuentra cancelada');
     
+    if not motivo:
+        raise raise_duplicate_entity('Debe proporcionar un motivo para cancelar la cita.')
+
     estado = await get_estado_cita_by_id(ESTADOS_CITA.cancelada.value, tenant_id)
     if not estado:
         raise raise_not_found(f'Estado de cita {ESTADOS_CITA.cancelada.value}')
@@ -214,6 +217,7 @@ async def cancel_cita(cita_id: str, tenant_id: str, user_id: str) -> Cita:
     
     cita.estado_id=estado.estado_id
     cita.canceledBy=user.id
+    cita.motivo_cancelacion=motivo
 
     cita_guardada = await cita.save()
     # await notificar_evento_cita(estado.nombre, f'{cita_guardada.id} {cita_guardada.fecha_inicio} {cita_guardada.fecha_fin}')
@@ -267,7 +271,9 @@ async def cita_to_out(cita: Cita) -> CitaOut:
         fecha_fin=fin_local_aw,
         fecha_inicio=inicio_local_aw,
         motivo=cita.motivo,
+        cancel_motivo=cita.motivo_cancelacion,
         canceledBy=user_to_out(canceledByUser) if canceledByUser else None,
+        
     )
 
     return cita_out

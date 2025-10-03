@@ -19,9 +19,10 @@ class Cita(Document):
     estado_id: int = Field(default=0)
     motivo: Optional[str] = Field(default=None, max_length=500)
     canceledBy: Optional[PydanticObjectId] = Field(default=None)
-    reminders_sent_marks: List[int] = Field(default_factory=list)  # p.ej. [24, 22, 20, ...]
+    reminders_sent_marks: List[int] = Field(default_factory=list)
     last_reminder_sent_at: Optional[datetime] = Field(default=None)
     auto_canceled_at: Optional[datetime] = Field(default=None)
+    motivo_cancelacion: Optional[str] = Field(default=None, max_length=250)
 
     class Settings:
         name = "citas"
