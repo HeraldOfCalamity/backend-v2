@@ -9,8 +9,8 @@ from app.core.config import settings
 from app.core.db import client
 
 from app.core.exceptions import raise_duplicate_entity, raise_not_found
-from app.domain.entities.historial_entity import EntradaAdd, HistorialCreate, PresignReq, RegisterImageReq, UpdateHistorial
-from app.infrastructure.schemas.historial import Entrada, HistorialClinico, ImageAsset, NerSpan, SectionNer
+from app.domain.entities.historial_entity import EntradaAdd, HistorialCreate, PresignReq, RegisterImageReq, TratamientoAdd, UpdateHistorial
+from app.infrastructure.schemas.historial import Entrada, HistorialClinico, ImageAsset, NerSpan, SectionNer, Tratamiento
 
 s3 = boto3.client(
     's3',
@@ -41,27 +41,11 @@ async def create_historial(data: HistorialCreate, tenant_id: str) -> HistorialCl
 
     if historial:
         raise raise_duplicate_entity('Ya existe un historial para el paciente')
-    
-    cond_spans = spans_to_models(extract_ner_spans(data.condActual))
-    intv_spans = spans_to_models(extract_ner_spans(data.intervencionClinica))
-    antf_spans = spans_to_models(extract_ner_spans(data.antFamiliares))
-    antp_spans = spans_to_models(extract_ner_spans(data.antPersonales))
-
-    sections = [
-        SectionNer(section="condActual", ents=cond_spans),
-        SectionNer(section="intervencionClinica", ents=intv_spans),
-        SectionNer(section="antfamiliares", ents=antf_spans),
-        SectionNer(section="antPersonales", ents=antp_spans),
-    ]
 
     new_historial = HistorialClinico(
-        antfamiliares=data.antFamiliares,
-        antPersonales=data.antPersonales,
-        condActual=data.condActual,
-        intervencionClinica=data.condActual,
         paciente_id=PydanticObjectId(data.paciente_id),
         tenant_id=PydanticObjectId(tenant_id),
-        ner_sections=sections
+        tratamientos=[]
     )
 
     created = await new_historial.insert()
@@ -112,7 +96,7 @@ async def update_historial_anamnesis(updateData: UpdateHistorial, tenant_id: str
 
 
 
-async def add_entrada(historial_id: str, tenant_id: str, data: EntradaAdd) -> HistorialClinico:
+async def add_entrada(historial_id: str, tratamiento_id: str, tenant_id: str, data: EntradaAdd) -> HistorialClinico:
     async with await client.start_session() as s:
         async with s.start_transaction():
             hist = await HistorialClinico.get(historial_id, session=s)
@@ -141,7 +125,19 @@ async def add_entrada(historial_id: str, tenant_id: str, data: EntradaAdd) -> Hi
             )
 
             # 3) Guardar en el historial
-            hist.entradas.append(entrada)
+            if not hist.tratamientos:
+                raise HTTPException(400, 'No hay tratamientos en el historial. Crea uno primero.')
+            
+            found_tratamiento = None
+            for tratamiento in hist.tratamientos:
+                if tratamiento.id == tratamiento_id:
+                    found_tratamiento = tratamiento
+                    break;
+            
+            if not found_tratamiento:
+                raise HTTPException(400, 'No se encontro ningun tratamiento asociado')
+
+            tratamiento.entradas.append(entrada)
             updated = await hist.save(session=s)
 
             # 4) Si te pasan imageIds (ids de ImageAsset), vincúlalas a esta entrada
@@ -256,11 +252,72 @@ def signed_get(key: str):
     except Exception as e:
         raise HTTPException(500, f'signed-get error: {e}')
 
-# async def attach_images(historial_id: str, entrtada_id: str, tenant_id: str, body: AttachImages)
-#     hist = await get_historial_by_id(historial_id, tenant_id)
-#     if not hist:
-#         raise raise_not_found('Historial no encontrado')
+async def add_tratamiento(historial_id: str, tenant_id: str, body: TratamientoAdd) -> HistorialClinico:
+    hist = await get_historial_by_id(historial_id, tenant_id)
+    if not hist:
+        raise raise_not_found('Historial no encontrado')
     
-#     target = next((e for e in hist.entradas if e.id))
+    cond_spans = spans_to_models(extract_ner_spans(body.condActual or ''))
+    intv_spans = spans_to_models(extract_ner_spans(body.intervencionClinica or ''))
+    antf_spans = spans_to_models(extract_ner_spans(body.antFamiliares or ''))
+    antp_spans = spans_to_models(extract_ner_spans(body.antPersonales or ''))
 
+    sections = [
+        SectionNer(section='condActual', ents=cond_spans),
+        SectionNer(section='intervencionClinica', ents=intv_spans),
+        SectionNer(section='antfamiliares', ents=antf_spans),
+        SectionNer(section='antPersonales', ents=antp_spans),
+    ]
 
+    tratamiento = Tratamiento(
+        motivo=body.motivo or '',
+        antfamiliares=body.antFamiliares or '',
+        antPersonales=body.antPersonales or '',
+        condActual=body.condActual or '',
+        intervencionClinica=body.intervencionClinica or '',
+        ner_sections=sections,
+        entradas=[]
+    )
+
+    hist.tratamientos.append(tratamiento)
+    return await hist.save()
+
+async def set_anamnesis_once(historial_id: str, tratamiento_id: str, tenant_id: str, body: TratamientoAdd) -> HistorialClinico:
+    hist = await get_historial_by_id(historial_id, tenant_id)
+    if not hist:
+        raise raise_not_found('Historial no encontrado')
+    
+    tr = None
+    for t in hist.tratamientos:
+        if t.id == tratamiento_id:
+            tr = t
+            break
+    
+    if tr is None:
+        raise raise_not_found('Tratamiento no encontrado')
+    
+    already = any([
+        (tr.antPersonales or '').strip(),
+        (tr.antfamiliares or '').strip(),
+        (tr.condActual or '').strip(),
+        (tr.intervencionClinica or '').strip(),
+    ])
+
+    if already:
+        raise HTTPException(status_code=409, detail='La anamnesis ya fue guardada para este tratamiento')
+    tr.antPersonales = body.antPersonales or ''
+    tr.antfamiliares = body.antFamiliares or ''
+    tr.condActual = body.condActual or ''
+    tr.intervencionClinica = body.intervencionClinica or ''
+
+    sections = [
+        SectionNer(section="antPersonales",     ents=spans_to_models(extract_ner_spans(tr.antPersonales))),
+        SectionNer(section="antfamiliares",     ents=spans_to_models(extract_ner_spans(tr.antfamiliares))),
+        SectionNer(section="condActual",        ents=spans_to_models(extract_ner_spans(tr.condActual))),
+        SectionNer(section="intervencionClinica", ents=spans_to_models(extract_ner_spans(tr.intervencionClinica))),
+    ]
+
+    tr.ner_sections = sections
+
+    return await hist.save()
+        

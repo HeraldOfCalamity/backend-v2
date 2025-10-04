@@ -76,16 +76,22 @@ class Entrada(BaseModel):
     imagenes: List[str] = Field(default_factory=list)
     ner: List[NerSpan] = Field(default_factory=list)
 
-class HistorialClinico(Document):
-    paciente_id: PydanticObjectId
-    tenant_id: PydanticObjectId
+class Tratamiento(BaseModel):
+    id: str = Field(default_factory=lambda: uuid4().hex)
+    motivo: str
     antfamiliares: str
     antPersonales: str
     condActual: str
     intervencionClinica: str
     entradas: List[Entrada] = Field(default_factory=list)
-    createdAt: datetime = Field(default_factory=get_utc_now)
     ner_sections: List[SectionNer] = Field(default_factory=list)
+    created_at: datetime = Field(default_factory=get_utc_now)
+
+class HistorialClinico(Document):
+    paciente_id: PydanticObjectId
+    tenant_id: PydanticObjectId
+    tratamientos: List[Tratamiento] = Field(default_factory=list)
+    createdAt: datetime = Field(default_factory=get_utc_now)
 
     class Settings:
         name = 'historiales'

@@ -5,11 +5,14 @@ from pydantic import BaseModel
 
 class HistorialCreate(BaseModel):    
     paciente_id: str
-    antFamiliares: str = ''
-    antPersonales: str = ''
-    condActual: str = ''
-    intervencionClinica: str = ''
 
+class TratamientoAdd(BaseModel):
+    motivo: str
+    antFamiliares: str
+    antPersonales: str
+    condActual: str
+    intervencionClinica: str
+    
 class EntradaAdd(BaseModel):
     recursosTerapeuticos: str
     evolucionText: str

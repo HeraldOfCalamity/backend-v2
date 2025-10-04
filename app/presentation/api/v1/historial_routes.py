@@ -2,8 +2,8 @@ from fastapi import APIRouter, Depends, Query
 
 from app.core.auth_utils import get_tenant, get_user_and_tenant
 from app.core.exceptions import raise_not_found
-from app.domain.entities.historial_entity import EntradaAdd, HistorialCreate, PresignReq, RegisterImageReq, UpdateHistorial
-from app.infrastructure.repositories.historial_repo import add_entrada, create_historial, get_historial_by_paciente_id, presign_upload, register_image, signed_get, update_historial_anamnesis
+from app.domain.entities.historial_entity import EntradaAdd, HistorialCreate, PresignReq, RegisterImageReq, TratamientoAdd, UpdateHistorial
+from app.infrastructure.repositories.historial_repo import add_entrada, add_tratamiento, create_historial, get_historial_by_paciente_id, presign_upload, register_image, set_anamnesis_once, signed_get, update_historial_anamnesis
 
 
 router = APIRouter(prefix='/historiales', tags=['Historiales'])
@@ -29,11 +29,11 @@ async def crear_historial(body: HistorialCreate):
     return await create_historial(body, tenant_id)
     
 
-@router.post('/{historial_id}/entradas')
-async def historial_add_entrada(historial_id: str, body: EntradaAdd):
+@router.post('/{historial_id}/entradas/{tratamiento_id}')
+async def historial_add_entrada(historial_id: str, tratamiento_id: str, body: EntradaAdd):
     # user, tenant_id = ctx
     tenant_id = await get_tenant()
-    return await add_entrada(historial_id, tenant_id, body)
+    return await add_entrada(historial_id, tratamiento_id, tenant_id, body)
     
 @router.put('/{historial_id}/anamnesis')
 async def update_anamnesis(historial_id: str, body: UpdateHistorial):
@@ -46,3 +46,13 @@ async def obtener_historial_by_paciente_id(paciente_id: str):
     tenant_id = await get_tenant()
     historial = await get_historial_by_paciente_id(paciente_id, tenant_id)
     return historial
+
+@router.post('/{historial_id}/tratamientos')
+async def historial_add_tratamiento(historial_id: str, body: TratamientoAdd):
+    tenant_id = await get_tenant()
+    return await add_tratamiento(historial_id,tenant_id, body)
+
+@router.post('/{historial_id}/tratamientos/{tratamiento_id}/anamnesis:set-once')
+async def set_anamnesis_once_route(historial_id: str, tratamiento_id: str, body: TratamientoAdd):
+    tenant_id = await get_tenant()
+    return await set_anamnesis_once(historial_id, tratamiento_id, tenant_id, body)
