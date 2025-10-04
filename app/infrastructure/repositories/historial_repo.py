@@ -193,7 +193,16 @@ async def register_image(body: RegisterImageReq, tenant_id: str):
     if not hist:
         raise HTTPException(404, "Historial no encontrado")
 
-    if not any(e.id == body.entradaId for e in hist.entradas):
+    entrada_encontrada = None
+    for tratamiento in hist.tratamientos:
+        for entrada in tratamiento.entradas:
+            if entrada.id == body.entradaId:
+                entrada_encontrada = entrada
+                break
+        if entrada_encontrada:
+            break
+
+    if not entrada_encontrada:
         raise HTTPException(404, "Entrada no encontrada")
 
     # 2) Insertar metadata de la imagen
@@ -222,9 +231,12 @@ async def register_image(body: RegisterImageReq, tenant_id: str):
         },
         {
             # empuja la KEY de la imagen al array 'imagenes' de esa entrada
-            "$push": { "entradas.$[e].imagenes": body.key }
+            "$push": { "tratamientos.$[t].entradas.$[e].imagenes": body.key }
         },
-        array_filters=[{ "e.id": body.entradaId }],   # condiciona por id de entrada (string)
+        array_filters=[
+            { "t.id": body.tratamientoId },
+            { "e.id": body.entradaId }
+        ],   # condiciona por id de entrada (string)
     )
 
     # 4) NUNCA devuelvas UpdateResult; devuelve JSON o el doc actualizado

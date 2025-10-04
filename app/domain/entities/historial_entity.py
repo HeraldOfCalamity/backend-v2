@@ -32,6 +32,7 @@ class UpdateHistorial(BaseModel):
     intervencionClinica: str
 
 class RegisterImageReq(BaseModel):
+    tratamientoId: str
     pacienteId: str
     historialId: Optional[str]
     entradaId: Optional[str]
