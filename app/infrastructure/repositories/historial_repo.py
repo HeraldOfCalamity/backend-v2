@@ -194,10 +194,12 @@ async def register_image(body: RegisterImageReq, tenant_id: str):
         raise HTTPException(404, "Historial no encontrado")
 
     entrada_encontrada = None
+    tratamiento_encontrado = None
     for tratamiento in hist.tratamientos:
         for entrada in tratamiento.entradas:
             if entrada.id == body.entradaId:
                 entrada_encontrada = entrada
+                tratamiento_encontrado = tratamiento
                 break
         if entrada_encontrada:
             break
@@ -224,6 +226,9 @@ async def register_image(body: RegisterImageReq, tenant_id: str):
 
     # 3) $push posicional en la entrada que coincide (arrayFilters)
     coll = HistorialClinico.get_motor_collection()
+    t_id = getattr(body, 'tratamientoId', None) or (tratamiento_encontrado.id if tratamiento_encontrado else None)
+    if not t_id:
+        raise HTTPException(400, 'tratamientoId requerido o no se pudo inferir desde la entrada')
     upd = await coll.update_one(
         {
             "_id": hist.id,                           # ObjectId del historial
@@ -234,7 +239,7 @@ async def register_image(body: RegisterImageReq, tenant_id: str):
             "$push": { "tratamientos.$[t].entradas.$[e].imagenes": body.key }
         },
         array_filters=[
-            { "t.id": body.tratamientoId },
+            { "t.id": t_id },
             { "e.id": body.entradaId }
         ],   # condiciona por id de entrada (string)
     )
