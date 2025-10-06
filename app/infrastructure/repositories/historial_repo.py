@@ -113,6 +113,7 @@ async def add_entrada(historial_id: str, tratamiento_id: str, tenant_id: str, da
                 recursosTerapeuticos=txt_rec,
                 evolucionText=txt_evo,
                 imagenes=[PydanticObjectId(id) for id in data.imageIds],   # si cambiaste a keys, ajusta aquí
+                anexos=[],
                 ner=[NerSpan(
                     label=s["label"],
                     text=s["text"],
@@ -151,7 +152,16 @@ async def add_entrada(historial_id: str, tratamiento_id: str, tenant_id: str, da
 
 def presign_upload(body: PresignReq):
     # Usa la extensión correcta
-    ext = '.bin' if body.content_type == 'application/octet-stream' else '.webp'
+    # ext = '.bin' if body.content_type == 'application/octet-stream' else '.webp'
+    ct = (body.content_type or '').lower()
+    if ct == 'application/pdf':
+        ext = '.pdf'
+    elif ct.startswith('image/'):
+        ext = '.webp'
+    elif ct == 'application/octet-stream':
+        ext = '.bin'
+    else:
+        ext = '.bin'
     key = (
         f"pacientes/{body.paciente_id}/"
         f"{body.historial_id or 'no-hist'}/"
@@ -256,6 +266,78 @@ async def register_image(body: RegisterImageReq, tenant_id: str):
         # "historial": updated,  # <- El Document de Beanie es Pydantic; FastAPI lo serializa
     }
 
+async def register_attachment(body: RegisterImageReq, tenant_id: str):
+    # 1) Cargar historial y validar entrada
+    hist = await HistorialClinico.find_one(
+        HistorialClinico.id == PydanticObjectId(body.historialId),
+        HistorialClinico.tenant_id == PydanticObjectId(tenant_id)
+    )
+    if not hist:
+        raise HTTPException(404, "Historial no encontrado")
+
+    entrada_encontrada = None
+    tratamiento_encontrado = None
+    for tratamiento in hist.tratamientos:
+        for entrada in tratamiento.entradas:
+            if entrada.id == body.entradaId:
+                entrada_encontrada = entrada
+                tratamiento_encontrado = tratamiento
+                break
+        if entrada_encontrada:
+            break
+
+    if not entrada_encontrada:
+        raise HTTPException(404, "Entrada no encontrada")
+
+    # 2) Insertar metadata de la imagen
+    img = ImageAsset(
+        tenant_id=PydanticObjectId(tenant_id),
+        paciente_id=PydanticObjectId(body.pacienteId),
+        historial_id=PydanticObjectId(body.historialId),
+        entrada_id=body.entradaId,               # <-- string, coincide con Entrada.id
+        bucket=settings.S3_BUCKET,
+        key=body.key,                            # <-- GUARDAS LA KEY
+        content_type=body.originalType or ('application/octet-stream' if body.aesKeyB64 else 'image/webp'),
+        size=body.size or 0,
+        width=body.width,
+        height=body.height,
+        preview_data_url=body.previewDataUrl,
+        crypto=None if not (body.aesKeyB64 and body.ivB64) else {'key_b64': body.aesKeyB64, 'iv_b64': body.ivB64},
+    )
+    await img.insert()
+
+    # 3) $push posicional en la entrada que coincide (arrayFilters)
+    coll = HistorialClinico.get_motor_collection()
+    t_id = getattr(body, 'tratamientoId', None) or (tratamiento_encontrado.id if tratamiento_encontrado else None)
+    if not t_id:
+        raise HTTPException(400, 'tratamientoId requerido o no se pudo inferir desde la entrada')
+    upd = await coll.update_one(
+        {
+            "_id": hist.id,                           # ObjectId del historial
+            "tenant_id": hist.tenant_id,              # seguridad multi-tenant
+        },
+        {
+            # empuja la KEY de la imagen al array 'imagenes' de esa entrada
+            "$push": { "tratamientos.$[t].entradas.$[e].anexos": body.key }
+        },
+        array_filters=[
+            { "t.id": t_id },
+            { "e.id": body.entradaId }
+        ],   # condiciona por id de entrada (string)
+    )
+
+    # 4) NUNCA devuelvas UpdateResult; devuelve JSON o el doc actualizado
+    #    Opción A: doc actualizado (Pydantic -> JSON ok)
+    # updated = await HistorialClinico.get(hist.id)
+    return {
+        "ok": True,
+        "key": body.key,
+        "imageId": str(img.id),
+        "matched": upd.matched_count,
+        "modified": upd.modified_count,
+        # "historial": updated,  # <- El Document de Beanie es Pydantic; FastAPI lo serializa
+    }
+
 
 def signed_get(key: str):
     try:
@@ -278,12 +360,14 @@ async def add_tratamiento(historial_id: str, tenant_id: str, body: TratamientoAd
     intv_spans = spans_to_models(extract_ner_spans(body.intervencionClinica or ''))
     antf_spans = spans_to_models(extract_ner_spans(body.antFamiliares or ''))
     antp_spans = spans_to_models(extract_ner_spans(body.antPersonales or ''))
+    diag_spans = spans_to_models(extract_ner_spans(body.diagnostico or ''))
 
     sections = [
         SectionNer(section='condActual', ents=cond_spans),
         SectionNer(section='intervencionClinica', ents=intv_spans),
         SectionNer(section='antfamiliares', ents=antf_spans),
         SectionNer(section='antPersonales', ents=antp_spans),
+        SectionNer(section='diagnostico', ents=diag_spans)
     ]
 
     tratamiento = Tratamiento(
@@ -292,6 +376,7 @@ async def add_tratamiento(historial_id: str, tenant_id: str, body: TratamientoAd
         antPersonales=body.antPersonales or '',
         condActual=body.condActual or '',
         intervencionClinica=body.intervencionClinica or '',
+        diagnostico=body.diagnostico or '',
         ner_sections=sections,
         entradas=[]
     )
@@ -318,6 +403,7 @@ async def set_anamnesis_once(historial_id: str, tratamiento_id: str, tenant_id: 
         (tr.antfamiliares or '').strip(),
         (tr.condActual or '').strip(),
         (tr.intervencionClinica or '').strip(),
+        (tr.diagnostico or '').strip(),
     ])
 
     if already:
@@ -326,12 +412,15 @@ async def set_anamnesis_once(historial_id: str, tratamiento_id: str, tenant_id: 
     tr.antfamiliares = body.antFamiliares or ''
     tr.condActual = body.condActual or ''
     tr.intervencionClinica = body.intervencionClinica or ''
+    tr.diagnostico = body.diagnostico or ''
+
 
     sections = [
         SectionNer(section="antPersonales",     ents=spans_to_models(extract_ner_spans(tr.antPersonales))),
         SectionNer(section="antfamiliares",     ents=spans_to_models(extract_ner_spans(tr.antfamiliares))),
         SectionNer(section="condActual",        ents=spans_to_models(extract_ner_spans(tr.condActual))),
         SectionNer(section="intervencionClinica", ents=spans_to_models(extract_ner_spans(tr.intervencionClinica))),
+        SectionNer(section='diagnostico', ents=spans_to_models(extract_ner_spans(tr.diagnostico)))
     ]
 
     tr.ner_sections = sections

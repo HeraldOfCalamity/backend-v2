@@ -12,6 +12,7 @@ class TratamientoAdd(BaseModel):
     antPersonales: str
     condActual: str
     intervencionClinica: str
+    diagnostico: str
     
 class EntradaAdd(BaseModel):
     recursosTerapeuticos: str

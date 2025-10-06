@@ -23,7 +23,7 @@ class NerSpan(BaseModel):
 
 class SectionNer(BaseModel):
     # secciones de Anamnesis
-    section: Literal["antPersonales","antfamiliares","condActual","intervencionClinica"]
+    section: Literal["antPersonales","antfamiliares","condActual","intervencionClinica", "diagnostico"]
     ents: List[NerSpan] = Field(default_factory=list)
 
 class CryptoMeta(BaseModel):
@@ -74,6 +74,7 @@ class Entrada(BaseModel):
 
     # Referencias a imágenes (ids de ImageAsset)
     imagenes: List[str] = Field(default_factory=list)
+    anexos: List[str] = Field(default_factory=list)
     ner: List[NerSpan] = Field(default_factory=list)
 
 class Tratamiento(BaseModel):
@@ -83,6 +84,7 @@ class Tratamiento(BaseModel):
     antPersonales: str
     condActual: str
     intervencionClinica: str
+    diagnostico: str = ''
     entradas: List[Entrada] = Field(default_factory=list)
     ner_sections: List[SectionNer] = Field(default_factory=list)
     created_at: datetime = Field(default_factory=get_utc_now)

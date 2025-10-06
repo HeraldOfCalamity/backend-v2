@@ -3,7 +3,7 @@ from fastapi import APIRouter, Depends, Query
 from app.core.auth_utils import get_tenant, get_user_and_tenant
 from app.core.exceptions import raise_not_found
 from app.domain.entities.historial_entity import EntradaAdd, HistorialCreate, PresignReq, RegisterImageReq, TratamientoAdd, UpdateHistorial
-from app.infrastructure.repositories.historial_repo import add_entrada, add_tratamiento, create_historial, get_historial_by_paciente_id, presign_upload, register_image, set_anamnesis_once, signed_get, update_historial_anamnesis
+from app.infrastructure.repositories.historial_repo import add_entrada, add_tratamiento, create_historial, get_historial_by_paciente_id, presign_upload, register_attachment, register_image, set_anamnesis_once, signed_get, update_historial_anamnesis
 
 
 router = APIRouter(prefix='/historiales', tags=['Historiales'])
@@ -17,6 +17,11 @@ async def historial_register_image(body: RegisterImageReq):
     # user, tenant_id = ctx
     tenant_id = await get_tenant()
     return await register_image(body, tenant_id)
+
+@router.post('/upload/register-attach')
+async def historial_register_attachment(body: RegisterImageReq):
+    tenant_id = await get_tenant()
+    return await register_attachment(body, tenant_id)
 
 @router.get('/images/signed-get')
 def historial_signed_get(key: str = Query(...)):
