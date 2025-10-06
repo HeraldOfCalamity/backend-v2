@@ -1,11 +1,12 @@
-from fastapi import APIRouter, Depends
+from typing import List
+from fastapi import APIRouter, Depends, Query
 
 from app.application.services.notification_service import notificar_evento_cita
-from app.core.auth_utils import get_user_and_tenant
+from app.core.auth_utils import get_tenant, get_user_and_tenant
 from app.core.exceptions import raise_not_found
 from app.core.security import require_permission
 from app.domain.entities.cita_entity import CitaCreate, CitaOut
-from app.infrastructure.repositories.cita_repo import cancel_cita, cita_to_out, confirm_cita, create_cita, get_citas_by_especialista_id, get_citas_by_paciente_id, get_citas_by_tenant_id, send_cita_email, set_attended_cita
+from app.infrastructure.repositories.cita_repo import cancel_cita, cita_to_out, confirm_cita, create_cita, get_citas_by_especialista_id, get_citas_by_paciente_id, get_citas_by_tenant_id, get_pacientes_con_citas_por_especialista, send_cita_email, set_attended_cita
 from app.infrastructure.repositories.role_repo import get_role_by_id
 from app.shared.dto.mailData_dto import MailData
 
@@ -112,3 +113,13 @@ async def atender_cita(cita_id: str, ctx=Depends(get_user_and_tenant)):
     )
     return cita_out
 
+@router.get('/especialista/{especialista_id}/pacientes')
+async def pacientes_con_citas_especialista(
+    especialista_id: str,
+    estados: str = Query(default='confirmada,pendiente', description='CSV de estados, ej: "confirmada,pendiente"'),
+    limit: int = Query(default=10, ge=1, le=2000),
+):
+    tenant_id = await get_tenant()
+    estados_list: List[str] = [s.strip() for s in estados.split(',') if s.strip()]
+    items = await get_pacientes_con_citas_por_especialista(tenant_id, especialista_id, estados_list, limit)
+    return {'items': items, 'count': len(items)}

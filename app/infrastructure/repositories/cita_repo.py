@@ -1,7 +1,7 @@
 from datetime import datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
 from string import Template
-from typing import Literal, Optional, Tuple
+from typing import Any, Dict, List, Literal, Optional, Tuple
 from beanie import PydanticObjectId
 from pydantic import EmailStr
 # from app.application.services.notification_service import notificar_evento_cita
@@ -361,3 +361,57 @@ def get_email_message(event: Literal['reserva', 'confirmacion', 'cancelacion', '
     html = get_mail_html(mail_template_name, values)
 
     return html
+
+async def get_pacientes_con_citas_por_especialista(
+    tenant_id: str,
+    especialista_id: str,
+    estados: Optional[List[str]] = None,
+    limit: int = 10
+) -> List[Dict[str, Any]]:
+    if not estados:
+        estados = ['confirmada', 'pendiente']
+
+    estado_ids: List[int] = []
+    for name in estados:
+        est = await get_estado_cita_by_name(name, tenant_id)
+        if est:
+            estado_ids.append(est.estado_id)
+
+    coll = Cita.get_motor_collection()
+    pipeline = [
+        {
+            "$match": {
+                "tenant_id": PydanticObjectId(tenant_id),
+                "especialista_id": PydanticObjectId(especialista_id),
+                "estado_id": {"$in": estado_ids},
+            }
+        },
+        {"$sort": {"fecha_inicio": -1}},
+        {
+            "$group": {
+                "_id": "$paciente_id",
+                "last_cita": {"$first": "$fecha_inicio"},
+                "last_estado_id": {"$first": "$estado_id"},
+                "total": {"$sum": 1},
+            }           
+        },
+        {"$limit": int(limit)}
+    ]
+
+    rows = await coll.aggregate(pipeline).to_list(length=None)
+
+    out: List[Dict[str, Any]] = []
+    for r in rows:
+        pid = r["_id"]
+        profile = await get_paciente_profile_by_id(str(pid), tenant_id)
+        estado = await get_estado_cita_by_id(int(r.get('last_estado_id', 0)), tenant_id)
+        out.append({
+            "paciente_id": str(pid),
+            "nombre": f"{profile.user.name} {profile.user.lastname}" if profile and profile.user else None,
+            "telefono": getattr(profile.user, "phone", None) if profile and profile.user else None,
+            "last_cita": r.get("last_cita"),
+            "last_estado": estado.nombre if estado else None,
+            "total": int(r.get("total", 1)),            
+        })
+    
+    return out
