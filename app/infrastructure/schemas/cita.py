@@ -4,6 +4,8 @@ from typing import Any, List, Optional
 from beanie import Document, PydanticObjectId
 from pymongo import IndexModel, ASCENDING, DESCENDING
 from pydantic import BaseModel, Field, field_validator, model_validator, validator
+
+from app.infrastructure.schemas.estadoCita import ESTADOS_CITA
     
 
 class Cita(Document):
@@ -43,6 +45,20 @@ class Cita(Document):
                     ("fecha_fin", ASCENDING),
                 ],
                 name="idx_unique_slot_like",
+            ),
+            IndexModel(
+                [("tenant_id", ASCENDING), ("especialista_id", ASCENDING), ("fecha_inicio", ASCENDING), ("fecha_fin", ASCENDING)],
+                name="uniq_slot_active",
+                unique=True,
+                partialFilterExpression={
+                    "estado_id": {
+                        "$in": [
+                            ESTADOS_CITA.pendiente.value,
+                            ESTADOS_CITA.confirmada.value,
+                            ESTADOS_CITA.atendida.value,
+                        ]
+                    }
+                },  # 👈 solo aplica a NO canceladas
             ),
         ]
 

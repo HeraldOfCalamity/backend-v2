@@ -91,7 +91,8 @@ async def exists_solapamiento(especialista_id: str, fecha_inicio: datetime, fech
         Cita.tenant_id == PydanticObjectId(tenant_id),
         Cita.especialista_id == PydanticObjectId(especialista_id),
         LT(Cita.fecha_inicio, fecha_fin),
-        GT(Cita.fecha_fin, fecha_inicio)
+        GT(Cita.fecha_fin, fecha_inicio),
+        NE(Cita.estado_id, ESTADOS_CITA.cancelada.value)
     )).first_or_none()
     return cita is not None
 
