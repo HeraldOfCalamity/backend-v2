@@ -2,8 +2,8 @@ from fastapi import APIRouter, Depends, Query
 
 from app.core.auth_utils import get_tenant, get_user_and_tenant
 from app.core.exceptions import raise_not_found
-from app.domain.entities.historial_entity import EntradaAdd, HistorialCreate, PresignReq, RegisterImageReq, TratamientoAdd, UpdateHistorial
-from app.infrastructure.repositories.historial_repo import add_entrada, add_tratamiento, create_historial, get_historial_by_paciente_id, presign_upload, register_attachment, register_image, set_anamnesis_once, signed_get, update_historial_anamnesis
+from app.domain.entities.historial_entity import EntradaAdd, HistorialCreate, PresignReq, RecomendacionesUpdate, RegisterImageReq, TratamientoAdd, UpdateHistorial
+from app.infrastructure.repositories.historial_repo import add_entrada, add_tratamiento, create_historial, get_historial_by_paciente_id, presign_upload, register_attachment, register_image, set_anamnesis_once, set_recomendaciones, signed_get, update_historial_anamnesis
 
 
 router = APIRouter(prefix='/historiales', tags=['Historiales'])
@@ -61,3 +61,8 @@ async def historial_add_tratamiento(historial_id: str, body: TratamientoAdd):
 async def set_anamnesis_once_route(historial_id: str, tratamiento_id: str, body: TratamientoAdd):
     tenant_id = await get_tenant()
     return await set_anamnesis_once(historial_id, tratamiento_id, tenant_id, body)
+
+@router.put("/{historial_id}/tratamientos/{tratamiento_id}/entradas/{entrada_id}/recomendaciones")
+async def put_recomendaciones(historial_id: str, tratamiento_id: str, entrada_id: str, body: RecomendacionesUpdate):
+    tenant_id = await get_tenant()
+    return await set_recomendaciones(historial_id, tratamiento_id, entrada_id, body.recomendaciones, tenant_id)

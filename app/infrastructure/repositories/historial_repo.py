@@ -427,3 +427,24 @@ async def set_anamnesis_once(historial_id: str, tratamiento_id: str, tenant_id: 
 
     return await hist.save()
         
+async def set_recomendaciones(historial_id: str, tratamiento_id: str, entrada_id: str, recomendaciones: str, tenant_id: str):
+    hist = await HistorialClinico.find(And(
+        HistorialClinico.tenant_id == PydanticObjectId(tenant_id),
+        HistorialClinico.id == PydanticObjectId(historial_id)
+    )).first_or_none()
+
+    if not hist:
+        raise HTTPException(404, "Historial no encontrado")
+    
+    coll = HistorialClinico.get_motor_collection()
+    upd = await coll.update_one(
+        {"_id": hist.id, "tenant_id": hist.tenant_id},
+        {"$set": {"tratamientos.$[t].entradas.$[e].recomendaciones": recomendaciones or ""}},
+        array_filters=[{"t.id": tratamiento_id}, {"e.id": entrada_id}]
+    )
+
+    if upd.matched_count == 0:
+        raise HTTPException(404, 'Tratamiento o entrada no encontrada')
+    
+    refreshed = await HistorialClinico.find_one(HistorialClinico.id == hist.id)
+    return refreshed

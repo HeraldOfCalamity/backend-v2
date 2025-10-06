@@ -75,6 +75,7 @@ class Entrada(BaseModel):
     # Referencias a imágenes (ids de ImageAsset)
     imagenes: List[str] = Field(default_factory=list)
     anexos: List[str] = Field(default_factory=list)
+    recomendaciones: str = ''
     ner: List[NerSpan] = Field(default_factory=list)
 
 class Tratamiento(BaseModel):

@@ -47,6 +47,8 @@ class RegisterImageReq(BaseModel):
     ivB64: Optional[str] = None
     previewDataUrl: Optional[str] = None
 
+class RecomendacionesUpdate(BaseModel):
+    recomendaciones: str
 
 
 
