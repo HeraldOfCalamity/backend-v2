@@ -1,14 +1,13 @@
-import base64
+from datetime import datetime, timezone
 import os
-from re import M
 from beanie import PydanticObjectId
 from beanie.operators import And
 import pymongo
 from app.core.exceptions import raise_duplicate_entity, raise_not_found
-from app.domain.entities.especialista_entity import EspecialistaCreate, EspecialistaCreateWithUser, EspecialistaOut, EspecialistaProfileOut, EspecialistaUpdate
+from app.domain.entities.especialista_entity import EspecialistaCreate, EspecialistaCreateWithUser, EspecialistaOut, EspecialistaProfileOut, EspecialistaUpdate, InactividadPayload
+from app.infrastructure.repositories.officeConfig_repo import get_office_timezone
 from app.infrastructure.repositories.user_repo import get_user_by_email, get_user_by_id, user_to_out
 from app.infrastructure.schemas.especialista import Especialista
-from app.infrastructure.schemas.user import User
 from app.shared.utils import save_base_64_image_local
 
 async def create_especialista(data: EspecialistaCreate, user_id: str, tenant_id: str) -> Especialista:    
@@ -148,3 +147,115 @@ def especialista_to_out(especialista: Especialista) -> EspecialistaOut:
         especialista_dict['image'] = None
 
     return EspecialistaOut(**especialista_dict)
+
+
+async def agregar_inactividad_y_verificar(especialista_id: str, payload: InactividadPayload, cancelar: bool, tenant_id: str) -> dict:
+    from app.infrastructure.repositories.cita_repo import cancelar_citas, find_citas_de_especialista_entre
+    esp = await Especialista.find(And(
+        Especialista.tenant_id == PydanticObjectId(tenant_id),
+        Especialista.id == PydanticObjectId(especialista_id)
+    )).first_or_none()
+
+    if not esp:
+        raise raise_not_found('Especialista')
+    
+    ini_utc = _to_utc_naive(payload.desde)
+    fin_utc = _to_utc_naive(payload.hasta)
+    
+    inicio = min(ini_utc, fin_utc)
+    fin = max(ini_utc, fin_utc)
+
+    citas = await find_citas_de_especialista_entre(especialista_id, inicio, fin, tenant_id)
+
+    canceladas = 0
+    if cancelar and citas:
+        ids = [str(c.id) for c in citas]
+        canceladas = await cancelar_citas(ids, payload.motivo or 'Sin horarios disponibles', tenant_id)
+    
+    nuevo = {'desde': inicio, 'hasta': fin, 'motivo': payload.motivo}
+    new_mot = (payload.motivo or '').lower()
+    ya_existe = any(
+        getattr(ia, "desde", None) == inicio and
+        getattr(ia, "hasta", None) == fin and
+        (getattr(ia, "motivo", "") or "").lower() == new_mot
+        for ia in (esp.inactividades or [])
+    )
+
+
+    if not ya_existe:
+        esp.inactividades.append(nuevo)
+        await esp.save()
+
+    return{
+        'inactividad': nuevo,
+        'citas_en_rango': len(citas),
+        'citas_canceladas': canceladas
+    }
+
+async def re_verificar_inactividad(
+        especialista_id: str,
+        desde: datetime,
+        hasta: datetime,
+        tenant_id: str
+    ) -> dict:
+    from app.infrastructure.repositories.cita_repo import find_citas_de_especialista_entre
+    inicio = min(desde, hasta)
+    fin = max(desde, hasta)
+    citas = await find_citas_de_especialista_entre(especialista_id, inicio, fin, tenant_id)
+    return {
+        'citas_en_rango': len(citas)
+    }
+
+async def eliminar_inactividad(especialista_id: str, desde: datetime, hasta: datetime, tenant_id: str) -> dict:
+    esp = await Especialista.find(And(
+        Especialista.tenant_id == PydanticObjectId(tenant_id),
+        Especialista.id == PydanticObjectId(especialista_id)
+    )).first_or_none()
+    if not esp:
+        raise raise_not_found('Especialista')
+
+    # Variante A: UTC naive (recomendada y la que usamos ahora)
+    a_ini = _to_utc_naive(desde)
+    a_fin = _to_utc_naive(hasta)
+
+    # Variante B: naive "tal cual vino"
+    b_ini = desde.replace(tzinfo=None)
+    b_fin = hasta.replace(tzinfo=None)
+
+    # Variante C: hora local de oficina -> naive (compat con datos guardados localmente)
+    tz = await get_office_timezone(tenant_id)
+    if desde.tzinfo is not None:
+        c_ini = desde.astimezone(tz).replace(tzinfo=None)
+        c_fin = hasta.astimezone(tz).replace(tzinfo=None)
+    else:
+        # si llegó naive, no tenemos su tz de origen: asumimos que ya es local
+        c_ini = b_ini
+        c_fin = b_fin
+
+    def _match(ia) -> bool:
+        d = getattr(ia, "desde", None)
+        h = getattr(ia, "hasta", None)
+        return (
+            (d == a_ini and h == a_fin) or
+            (d == b_ini and h == b_fin) or
+            (d == c_ini and h == c_fin)
+        )
+
+    before = len(esp.inactividades or [])
+    esp.inactividades = [ia for ia in (esp.inactividades or []) if not _match(ia)]
+    removed = before - len(esp.inactividades or [])
+    if removed > 0:
+        await esp.save()
+
+    return {"removed": removed}
+
+
+
+def _to_utc_naive(dt: datetime) -> datetime:
+    """Convierte cualquier datetime a UTC naive (tz=UTC y luego sin tz)."""
+    if dt is None:
+        return None
+    if dt.tzinfo is None:
+        # Interpretamos naïve entrante como UTC (compatibilidad)
+        return dt.replace(tzinfo=None)
+    return dt.astimezone(timezone.utc).replace(tzinfo=None)

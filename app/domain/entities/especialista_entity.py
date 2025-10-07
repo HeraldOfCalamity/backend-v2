@@ -9,6 +9,11 @@ class Disponibilidad(BaseModel):
     desde: str
     hasta: str
 
+class InactividadPayload(BaseModel):
+    desde: datetime
+    hasta: datetime
+    motivo: Optional[str] = None
+
 class EspecialistaCreate(BaseModel):
     especialidad_ids: List[str]
     image: Optional[str] = ''
@@ -26,6 +31,7 @@ class EspecialistaOut(BaseModel):
     user_id: str
     especialidad_ids: List[str]
     disponibilidades: List[Disponibilidad]
+    inactividades: List[InactividadPayload]
     createdAt: datetime
     updatedAt: datetime
     image: Optional[str] = None

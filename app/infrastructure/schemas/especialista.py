@@ -10,10 +10,16 @@ class Disponibilidad(BaseModel):
     desde: str
     hasta: str
 
+class Inactividad(BaseModel):
+    desde: datetime
+    hasta: datetime
+    motivo: Optional[str] = None
+
 class Especialista(Document):
     user_id: PydanticObjectId = Field(...)
     especialidades: List[PydanticObjectId] = Field(default_factory=list)
     disponibilidades: List[Disponibilidad] = Field(default_factory=list)
+    inactividades: List[Inactividad] = Field(default_factory=list)
     informacion: Optional[str] = Field(default=None, max_length=500)
     image: Optional[str] = Field(default=None)
     tenant_id: PydanticObjectId = Field(...)

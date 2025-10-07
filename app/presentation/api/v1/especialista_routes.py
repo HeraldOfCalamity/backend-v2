@@ -1,9 +1,10 @@
-from fastapi import APIRouter, Depends, status
+from datetime import datetime
+from fastapi import APIRouter, Depends, Query, status
 
 from app.core.auth_utils import get_user_and_tenant
 from app.core.security import require_permission
-from app.domain.entities.especialista_entity import EspecialistaCreate, EspecialistaCreateWithUser, EspecialistaOut, EspecialistaProfileOut, EspecialistaUpdate, EspecialistaUpdateWithUser
-from app.infrastructure.repositories.especialista_repo import create_especialista, delete_especialista, especialista_to_out, get_especialista_by_especialidad_id, get_especialista_by_user_id, get_especialista_profile_by_id, get_especialistas_by_tenant, get_especialistas_with_user, update_especialista
+from app.domain.entities.especialista_entity import EspecialistaCreate, EspecialistaCreateWithUser, EspecialistaOut, EspecialistaProfileOut, EspecialistaUpdate, EspecialistaUpdateWithUser, InactividadPayload
+from app.infrastructure.repositories.especialista_repo import agregar_inactividad_y_verificar, create_especialista, delete_especialista, eliminar_inactividad, especialista_to_out, get_especialista_by_especialidad_id, get_especialista_by_user_id, get_especialista_profile_by_id, get_especialistas_by_tenant, get_especialistas_with_user, re_verificar_inactividad, update_especialista
 from app.infrastructure.repositories.user_repo import create_user, update_user, user_to_out
 
 
@@ -94,4 +95,41 @@ async def listar_especialistas_by_especialidad_id(especialidad_id: str, ctx=Depe
     especialistas = await get_especialista_by_especialidad_id(especialidad_id, tenant_id)
     return especialistas
 
+@router.post('/{especialista_id}/inactividades', dependencies=[
+    Depends(require_permission('update_especialists')),
+])
+async def crear_inactividad_y_opcionalmente_cancelar(
+    especialista_id: str,
+    body: InactividadPayload,
+    cancelar: bool = Query(False, description="Si true, cancela las citas del rango"),
+    ctx = Depends(get_user_and_tenant)
+):
+    user, tenant_id = ctx
+    result = await agregar_inactividad_y_verificar(especialista_id, body, cancelar, tenant_id)
+    return result
 
+@router.get('/{especialista_id}/inactividades/reverificar', dependencies=[
+    Depends(require_permission('read_especialists')),
+])
+async def reverificar_inactividad(
+    especialista_id: str,
+    desde: datetime,
+    hasta: datetime,
+    ctx = Depends(get_user_and_tenant)
+):
+    user, tenant_id = ctx
+    result = await re_verificar_inactividad(especialista_id, desde, hasta, tenant_id)
+    return result
+
+@router.delete('/{especialista_id}/inactividades', dependencies=[
+    Depends(require_permission('update_especialists')),
+])
+async def borrar_inactividad(
+    especialista_id: str,
+    desde: datetime = Query(...),
+    hasta: datetime = Query(...),
+    ctx = Depends(get_user_and_tenant)
+):
+    user, tenant_id = ctx
+    result = await eliminar_inactividad(especialista_id, desde, hasta, tenant_id)
+    return result

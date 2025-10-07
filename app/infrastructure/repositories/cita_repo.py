@@ -36,6 +36,23 @@ async def get_citas_by_paciente_id(paciente_id: str, tenant_id: str) -> list[Cit
         Cita.paciente_id == PydanticObjectId(paciente_id)
     )).to_list()
 
+async def find_citas_de_especialista_entre(
+    especialista_id: str,
+    inicio: datetime,
+    fin: datetime,
+    tenant_id: str 
+) -> List[Cita]:
+    ini_utc = _as_aware_utc(inicio)
+    fin_utc = _as_aware_utc(fin)
+
+    return await Cita.find(And(
+        Cita.tenant_id == PydanticObjectId(tenant_id),
+        Cita.especialista_id == PydanticObjectId(especialista_id),
+        LT(Cita.fecha_inicio, fin_utc),
+        GT(Cita.fecha_fin, ini_utc),
+        NE(Cita.estado_id, ESTADOS_CITA.cancelada.value),        
+    )).to_list()
+
 async def get_citas_by_especialista_id(
     especialista_id: str,
     tenant_id: str,
@@ -84,7 +101,7 @@ async def exists_cita_same_day(paciente_id: str, especialista_id: str, fecha_ref
     
     count = await Cita.find(And(*filters)).count()
     return count > 0
-    
+
 
 async def exists_solapamiento(especialista_id: str, fecha_inicio: datetime, fecha_fin: datetime, tenant_id: str) -> bool:
     cita = await Cita.find(And(
@@ -95,6 +112,41 @@ async def exists_solapamiento(especialista_id: str, fecha_inicio: datetime, fech
         NE(Cita.estado_id, ESTADOS_CITA.cancelada.value)
     )).first_or_none()
     return cita is not None
+
+def _overlap(a_start, a_end, b_start, b_end) -> bool:
+    return (a_start < b_end) and (a_end > b_start)
+
+async def exists_inactividad_en_rango(
+    especialista_id: str,
+    inicio_utc_aw: datetime,   # aware UTC
+    fin_utc_aw: datetime,      # aware UTC
+    tenant_id: str,
+) -> Optional[tuple[datetime, datetime, str]]:
+    """
+    Devuelve (ia_ini_aw, ia_fin_aw, motivo) si alguna inactividad del especialista
+    se solapa con [inicio_utc_aw, fin_utc_aw). Caso contrario, None.
+
+    Las inactividades están guardadas como UTC naive -> se convierten a aware UTC.
+    """
+    esp = await get_especialista_by_id(especialista_id, tenant_id)
+    if not esp or not getattr(esp, "inactividades", None):
+        return None
+
+    for ia in esp.inactividades:
+        # Soporta objetos/beanie o dicts
+        ia_desde = getattr(ia, "desde", None) or (ia.get("desde") if isinstance(ia, dict) else None)
+        ia_hasta = getattr(ia, "hasta", None) or (ia.get("hasta") if isinstance(ia, dict) else None)
+        if not ia_desde or not ia_hasta:
+            continue
+
+        ia_ini_aw = _as_aware_utc(ia_desde)
+        ia_fin_aw = _as_aware_utc(ia_hasta)
+
+        if ia_ini_aw and ia_fin_aw and _overlap(inicio_utc_aw, fin_utc_aw, ia_ini_aw, ia_fin_aw):
+            ia_motivo = getattr(ia, "motivo", None) or (ia.get("motivo") if isinstance(ia, dict) else "") or ""
+            return ia_ini_aw, ia_fin_aw, ia_motivo
+
+    return None
 
 async def create_cita(data: CitaCreate, tenant_id: str) -> Cita:
     duracion_parameter = await get_office_config_by_name('duracion_cita_minutos', tenant_id);
@@ -122,6 +174,22 @@ async def create_cita(data: CitaCreate, tenant_id: str) -> Cita:
 
     if not await get_especialidad_by_id(data.especialidad_id, tenant_id):
         raise_not_found('Especialidad')
+
+    ia_hit = await exists_inactividad_en_rango(
+        data.especialista_id, dt_utc, fecha_fin_utc, tenant_id
+    )
+    if ia_hit:
+        ia_ini_aw, ia_fin_aw, ia_motivo = ia_hit
+        # Mensaje en horario local de la oficina, más claro para el usuario
+        ia_ini_local = ia_ini_aw.astimezone(tz)
+        ia_fin_local = ia_fin_aw.astimezone(tz)
+        rango_str = f"{ia_ini_local.strftime('%d/%m %H:%M')}-{ia_fin_local.strftime('%H:%M')}"
+        mensaje = f'El especialista no está disponible en ese horario (inactividad {rango_str}'
+        if ia_motivo:
+            mensaje += f', motivo: {ia_motivo}'
+        mensaje += ').'
+        raise raise_duplicate_entity(mensaje)
+
 
     if await exists_solapamiento(data.especialista_id, dt_utc, fecha_fin_utc, tenant_id):
         raise raise_duplicate_entity(f'Cita con la hora seleccionada para el especialista')
@@ -363,6 +431,158 @@ def get_email_message(event: Literal['reserva', 'confirmacion', 'cancelacion', '
 
     return html
 
+async def get_email_message_cancelacion_inactividad(mailData: MailData, nombre_receptor: str, horarios_html: str) -> str:
+    values = {
+        **mailData.model_dump(),
+        "nombre_receptor": nombre_receptor,
+        "horarios_disponibles": horarios_html or ""
+    }
+
+    return get_mail_html('cancelacion_mail_template.html', values)
+
+
+async def _build_horarios_disponibles_html(
+    especialista_id: str,
+    tenant_id: str,
+    max_por_dia: int = 6
+) -> str:
+    DAY_MAP = {1: 0, 2: 1, 3: 2, 4: 3, 5: 4, 6: 5, 0: 6}
+    tz = await get_office_timezone(tenant_id)
+    now_local = datetime.now(tz)
+
+    # Inicio de semana local (Lunes 00:00)
+    week_start_local = (now_local - timedelta(days=now_local.weekday())).replace(hour=0, minute=0, second=0, microsecond=0)
+    week_end_local = week_start_local + timedelta(days=7)
+
+    week_start_utc = week_start_local.astimezone(timezone.utc)
+    week_end_utc = week_end_local.astimezone(timezone.utc)
+
+    # Datos base
+    especialista = await get_especialista_by_id(especialista_id, tenant_id)
+    if not especialista:
+        return "<p>No se pudo obtener la información del especialista.</p>"
+
+    # Duración de cita (min)
+    dur_param = await get_office_config_by_name("duracion_cita_minutos", tenant_id)
+    try:
+        step = timedelta(minutes=float(dur_param.value))
+    except Exception:
+        step = timedelta(minutes=45)
+
+    # Citas no canceladas de la semana (para filtrar solapes)
+    citas_semana = await Cita.find(And(
+        Cita.tenant_id == PydanticObjectId(tenant_id),
+        Cita.especialista_id == PydanticObjectId(especialista_id),
+        LT(Cita.fecha_inicio, week_end_utc),
+        GT(Cita.fecha_fin, week_start_utc),
+        NE(Cita.estado_id, ESTADOS_CITA.cancelada.value),
+    )).to_list()
+
+    booked = []
+    for c in citas_semana:
+        b_ini = _as_aware_utc(c.fecha_inicio).astimezone(tz)
+        b_fin = _as_aware_utc(c.fecha_fin).astimezone(tz)
+        booked.append((b_ini, b_fin))
+
+    # Inactividades del especialista (si existen)
+    inacts = []
+    for ia in getattr(especialista, "inactividades", []) or []:
+        ia_ini = _as_aware_utc(getattr(ia, "desde", None))
+        ia_fin = _as_aware_utc(getattr(ia, "hasta", None))
+        if ia_ini and ia_fin:
+            inacts.append((ia_ini, ia_fin))
+
+    def _overlap(a_start, a_end, b_start, b_end):
+        return (a_start < b_end) and (a_end > b_start)
+
+    day_names = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"]
+    html_parts = ["<ul>"]
+
+    # Generar slots por día
+    for d in range(7):
+        date_local = week_start_local + timedelta(days=d)
+
+        # Disponibilidades del día d
+        slots_out = []
+        for disp in getattr(especialista, "disponibilidades", []) or []:
+            disp_index = DAY_MAP.get(getattr(disp, "dia", None), None)
+            if disp_index is None or disp_index != d:
+                continue
+            try:
+                h1, m1 = map(int, str(disp.desde).split(":")[:2])
+                h2, m2 = map(int, str(disp.hasta).split(":")[:2])
+            except Exception:
+                continue
+
+            block_start = date_local.replace(hour=h1, minute=m1, second=0, microsecond=0)
+            block_end = date_local.replace(hour=h2, minute=m2, second=0, microsecond=0)
+
+            t = block_start
+            while t + step <= block_end:
+                if t > now_local:
+                    slot_end = t + step
+                    # Solape con citas (en local)
+                    has_cita = any(_overlap(t, slot_end, b_ini, b_fin) for (b_ini, b_fin) in booked)
+                    # Solape con inactividades (en UTC)
+                    t_utc = t.astimezone(timezone.utc)
+                    end_utc = slot_end.astimezone(timezone.utc)
+                    has_inact = any(_overlap(t_utc, end_utc, ia_ini, ia_fin) for (ia_ini, ia_fin) in inacts)
+                    if not has_cita and not has_inact:
+                        slots_out.append(t.strftime("%H:%M"))
+                        if len(slots_out) >= max_por_dia:
+                            break
+                t += step
+
+        if slots_out:
+            html_parts.append(f"<li><strong>{day_names[d]} {date_local.strftime('%d/%m')}</strong>: {', '.join(slots_out)}</li>")
+
+    html_parts.append("</ul>")
+
+    # Si no hay nada, devolvemos mensaje corto (evita correo vacío)
+    html = "".join(html_parts)
+    if html == "<ul></ul>":
+        return "<p>No hay horarios disponibles esta semana (o ya pasaron).</p>"
+    return html
+
+async def _send_cita_email_cancelacion_inactividad(cita: Cita) -> None:
+    office = await get_benedetta_office()
+    email_sending_parameter = await get_office_config_by_name('correos_encendidos', str(office.id))
+    if email_sending_parameter.value == '0':
+        return
+    
+    
+    admin_user = await get_admin_user(str(office.id))
+    especialista_user = await get_especialista_profile_by_id(str(cita.especialista_id), str(office.id))
+    especialista_full_name = f'{especialista_user.user.name} {especialista_user.user.lastname}'
+
+    paciente_user = await get_paciente_profile_by_id(str(cita.paciente_id), str(office.id))
+    paciente_full_name = f'{paciente_user.user.name} {paciente_user.user.lastname}'
+
+    especialidad = await get_especialidad_by_id(str(cita.especialidad_id), str(office.id))
+    tz = await get_office_timezone(str(office.id))
+    inicio_local = _as_aware_utc(cita.fecha_inicio).astimezone(tz)
+
+    base_data = MailData(
+        fecha=inicio_local.strftime('%d/%m/%Y'),
+        hora=inicio_local.strftime('%H:%M'),
+        nombre_consultorio=office.name,
+        nombre_especialidad=especialidad.nombre,
+        nombre_especialista=especialista_full_name,
+        nombre_paciente=paciente_full_name
+    )
+
+    horarios_html = await _build_horarios_disponibles_html(str(cita.especialista_id), str(office.id))
+
+    emails = [
+        (await get_email_message_cancelacion_inactividad(base_data, paciente_full_name, horarios_html), paciente_user.user.email),
+        (await get_email_message_cancelacion_inactividad(base_data, especialista_full_name, horarios_html), especialista_user.user.email),
+        (await get_email_message_cancelacion_inactividad(base_data, admin_user.name, horarios_html), admin_user.email),
+    ]
+    subject = 'Cancelación de Cita'
+
+    for html, to_addr in emails:
+        await send_sendgrid_email(to_addr, subject, html)
+
 async def get_pacientes_con_citas_por_especialista(
     tenant_id: str,
     especialista_id: str,
@@ -416,3 +636,47 @@ async def get_pacientes_con_citas_por_especialista(
         })
     
     return out
+
+async def cancelar_citas(
+    ids: List[str],
+    motivo: str,
+    tenant_id: str,
+    by_user_id: Optional[str] = None,
+    enviar_horarios: bool = True
+) -> int:
+    if not ids:
+        return 0
+    
+    if not motivo:
+        raise raise_duplicate_entity('Debe proporcionar un motivo para cancelar.')
+    
+    estado_cancel = await get_estado_cita_by_id(ESTADOS_CITA.cancelada.value, tenant_id)
+    if not estado_cancel:
+        raise raise_not_found(f'Estado de cita {ESTADOS_CITA.cancelada.value}')
+    
+    cancel_user = None
+    if by_user_id:
+        cancel_user = await get_user_by_id(by_user_id, tenant_id)
+    else:
+        cancel_user = await get_admin_user(tenant_id)
+
+    actualizadas = 0
+    for cid in ids:
+        cita = await get_cita_by_id(cid, tenant_id)
+        if not cita:
+            continue
+        if cita.estado_id == estado_cancel.estado_id:
+            continue
+
+        cita.estado_id = estado_cancel.estado_id
+        cita.canceledBy = cancel_user.id if cancel_user else None
+        cita.motivo_cancelacion = motivo
+        await cita.save()
+        actualizadas += 1
+
+        if enviar_horarios:
+            await _send_cita_email_cancelacion_inactividad(cita)
+        else:
+            await send_cita_email('cancelacion', cita)
+    
+    return actualizadas
