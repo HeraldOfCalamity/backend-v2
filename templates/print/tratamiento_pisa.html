@@ -1,0 +1,135 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8"/>
+  <style>{{ css_inline | safe }}</style>
+  <title>Historia clínica</title>
+</head>
+<body>
+  <!-- Encabezado en dos columnas -->
+  <table class="clinic-table">
+  <tr>
+    <td class="clinic-logo-cell">
+      <img src="{{ clinic.logo_url }}" class="clinic-logo" />
+    </td>
+    <td class="clinic-body-cell">
+      <div class="clinic-name">{{ clinic.name }}</div>
+
+      <!-- Línea con el ID del historial bajo el título -->
+      <div class="clinic-id">
+        Historial Clínico: <span class="mono">{{ historial_id }}</span>
+      </div>
+
+      <!-- Dos sublíneas pequeñas centradas -->
+      <div class="clinic-sub">{{ clinic.sub1 }}</div>
+      <div class="clinic-sub">{{ clinic.sub2 }}</div>
+
+      <!-- Meta multilínea: Tel / Dirección / Ciudad -->
+      {% set meta = [] %}
+      {% if clinic.phone %}{% set _ = meta.append('Tel: ' ~ clinic.phone) %}{% endif %}
+      {% if clinic.address %}{% set _ = meta.append(clinic.address) %}{% endif %}
+      {% if clinic.city %}{% set _ = meta.append(clinic.city) %}{% endif %}
+      {% if meta|length %}
+        <div class="clinic-meta">
+          {{ meta | join('\n') | replace('\n','<br/>') | safe }}
+        </div>
+      {% endif %}
+    </td>
+  </tr>
+  <!-- Línea divisoria inferior del encabezado -->
+  <tr>
+    <td colspan="2" class="clinic-divider"></td>
+  </tr>
+</table>
+
+<!-- IDENTIFICACIÓN (una celda, no se corta) -->
+<table class="section-table">
+  <tr>
+    <td>
+      <div class="section-wrapper section-keep">
+        <div class="section-head">IDENTIFICACIÓN DEL PACIENTE</div>
+        <div class="section-body">
+          <table class="kv-table small">
+            <tr><td>Nombre completo</td><td>{{ paciente.nombre or '—' }}</td></tr>
+            <tr><td>C.I.</td><td>{{ paciente.ci or '—' }}</td></tr>
+            <tr><td>Teléfono</td><td>{{ paciente.phone or '—' }}</td></tr>
+            <tr>
+              <td>Fecha nac.</td>
+              <td>{% if paciente.fecha_nac %}{{ paciente.fecha_nac.strftime('%d/%m/%Y') }}{% else %}—{% endif %}</td>
+            </tr>
+          </table>
+        </div>
+      </div>
+    </td>
+  </tr>
+</table>
+
+<!-- ANAMNESIS (una celda) -->
+<table class="section-table">
+  <tr>
+    <td>
+      <div class="section-wrapper section-keep">
+        <div class="section-head">ANAMNESIS</div>
+        <div class="section-body">
+          <div class="small">
+            <div><b>Motivo:</b><br/>{{ tratamiento.motivo | e }}</div>
+            <div><b>Antecedentes personales:</b><br/>{{ tratamiento.antPersonales | replace('\n','<br/>') | safe }}</div>
+            <div><b>Antecedentes familiares:</b><br/>{{ tratamiento.antFamiliares | replace('\n','<br/>') | safe }}</div>
+            <div><b>Condición actual:</b><br/>{{ tratamiento.condActual | replace('\n','<br/>') | safe }}</div>
+            <div><b>Intervención clínica:</b><br/>{{ tratamiento.intervencionClinica | replace('\n','<br/>') | safe }}</div>
+            <div><b>Diagnóstico:</b><br/>{{ tratamiento.diagnostico | replace('\n','<br/>') | safe }}</div>
+          </div>
+        </div>
+      </div>
+    </td>
+  </tr>
+</table>
+
+<!-- EVOLUCIÓN (cada entrada en una celda que no se corta) -->
+{% if entradas|length == 0 %}
+  <table class="section-table">
+    <tr>
+      <td>
+        <div class="section-wrapper section-keep">
+          <div class="section-head">EVOLUCIÓN</div>
+          <div class="section-body"><div class="small muted">Sin entradas.</div></div>
+        </div>
+      </td>
+    </tr>
+  </table>
+{% else %}
+  {% for e in entradas %}
+    <table class="section-table page-avoid">
+      <tr>
+        <td>
+          <div class="section-wrapper section-keep">
+            <div class="section-head">ENTRADA · {{ e.idx }} · {{ e.fecha }}</div>
+            <div class="section-body">
+              <div class="mb12"><b>Recursos terapéuticos</b><br/>{{ e.recursos | replace('\n','<br/>') | safe }}</div>
+              <div class="mb12"><b>Evolución</b><br/>{{ e.evolucion | replace('\n','<br/>') | safe }}</div>
+              <div class="mb12"><b>Recomendaciones</b><br/>{{ e.recomendaciones | replace('\n','<br/>') | safe }}</div>
+
+              {% if e.imagenes|length %}
+                <table class="img-table">
+                  {% for u in e.imagenes %}
+                    {% if loop.index0 % 2 == 0 %}<tr>{% endif %}
+                      <td class="img-cell">
+                        <img src="{{ u }}" class="img-fit"/>
+                        <div class="caption">{{ e.idx }} · {{ e.fecha }}</div>
+                      </td>
+                    {% if loop.index0 % 2 == 1 %}</tr>{% endif %}
+                  {% endfor %}
+                  {% if e.imagenes|length % 2 == 1 %}<td class="img-cell"></td></tr>{% endif %}
+                </table>
+              {% else %}
+                <div class="small muted">Sin imágenes.</div>
+              {% endif %}
+            </div>
+          </div>
+        </td>
+      </tr>
+    </table>
+  {% endfor %}
+{% endif %}
+</body>
+</html>

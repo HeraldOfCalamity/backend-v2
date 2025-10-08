@@ -1,0 +1,37 @@
+/* Tipografía y utilidades */
+body { font: 12pt/1.35 Arial, "Helvetica Neue", Helvetica, "Nimbus Sans", "Segoe UI", "Liberation Sans", sans-serif; color:#121212; }
+.small{ font-size:10.5pt; } .muted{ color:#666; }
+.mono{ font-family: Courier, "Courier New", monospace; }
+
+/* ===== Header dos columnas (logo + contenido centrado) ===== */
+.clinic-table { width:100%; border-collapse:collapse; }
+.clinic-logo-cell { width:154px; text-align:center; vertical-align:middle; }
+.clinic-logo { width:100%; height:100%; }
+.clinic-body-cell { text-align:center; vertical-align:middle; padding:4px 6px; }
+.clinic-name{ font-weight:800; font-size:16pt; line-height:1.15; }
+.clinic-id{ font-size:10pt; line-height:1.2; margin-top:2px; }
+.clinic-sub{ font-size:10pt; line-height:1.2; }
+.clinic-meta{ font-size:10pt; white-space:normal; }  /* multilínea permitida */
+.clinic-divider { border-bottom:1.5pt solid #111; height:10px; }
+
+/* Sección en una sola celda para evitar cortes entre head y body */
+.section-table { width:100%; border-collapse:collapse; margin:12px 0; }
+.section-wrapper { border:1.5pt solid #111; }        /* borde alrededor */
+.section-head { background:#f2ccd0; text-align:center; font-weight:600; padding:8px 10px; border-bottom:1.5pt solid #111; text-transform:uppercase; }
+.section-body { background:#fff; padding:12px; }
+
+/* Evitar saltos dentro de la celda de la sección */
+.section-keep { page-break-inside: avoid; }
+.section-keep td { page-break-inside: avoid; }
+
+/* kv, imágenes, etc. (igual que antes) */
+.kv-table { width:100%; border-collapse:collapse; }
+.kv-table td { padding:4px 8px; vertical-align:top; }
+
+.img-table { width:100%; border-collapse:collapse; margin-top:6px; }
+.img-cell { width:50%; padding:6px; vertical-align:top; }
+.img-fit { width:100%; height:auto; max-height:420px; }
+.caption { font-size:9.5pt; color:#555; margin-top:4px; }
+
+/* (opcional) también ayuda: */
+.page-avoid { page-break-inside: avoid; }
