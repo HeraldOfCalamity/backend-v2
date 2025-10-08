@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, status
 
 from app.core.auth_utils import get_user_and_tenant
 from app.core.security import require_permission
-from app.domain.entities.especialidad_entity import EspecialidadCreate, EspecialidadOut, EspecialidadUpdate
+from app.domain.entities.especialidad_entity import EspecialidadCreate, EspecialidadOut, EspecialidadUpdate, PresignEspecialidadReq, RegisterEspecialidadImageReq
 from app.infrastructure.repositories.especialidad_repo import create_especialidad, delete_especialidad, especialidad_to_out, get_especialidades_by_tenant, update_especialidad
 from app.infrastructure.repositories.office_repo import get_benedetta_office
 

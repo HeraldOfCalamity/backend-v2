@@ -21,3 +21,16 @@ class EspecialidadOut(BaseModel):
     tratamientos: List[str]
     descripcion: str
     createdAt: datetime
+
+
+class PresignEspecialidadReq(BaseModel):
+    content_type: Optional[str] = "image/webp"
+
+class RegisterEspecialidadImageReq(BaseModel):
+    especialidadId: str
+    key: str
+    originalType: Optional[str] = None
+    size: Optional[int] = None
+    width: Optional[int] = None
+    height: Optional[int] = None
+    previewDataUrl: Optional[str] = None
