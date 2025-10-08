@@ -1,24 +1,71 @@
+import base64
 from datetime import datetime, timezone
 import os
+import uuid
 from beanie import PydanticObjectId
 from beanie.operators import And
 import pymongo
+import boto3
+from botocore.config import Config as BotoConfig
 from app.core.exceptions import raise_duplicate_entity, raise_not_found
+from app.core.config import settings
 from app.domain.entities.especialista_entity import EspecialistaCreate, EspecialistaCreateWithUser, EspecialistaOut, EspecialistaProfileOut, EspecialistaUpdate, InactividadPayload
 from app.infrastructure.repositories.officeConfig_repo import get_office_timezone
 from app.infrastructure.repositories.user_repo import get_user_by_email, get_user_by_id, user_to_out
 from app.infrastructure.schemas.especialista import Especialista
 from app.shared.utils import save_base_64_image_local
 
+def _upload_base64_to_r2(base64_image: str, prefix: str = "especialistas") -> str:
+    """
+    Sube una imagen base64 a R2 y devuelve la KEY (p.ej. 'especialistas/<uuid>.webp').
+    """
+    # Detectar extensión por el header dataURL
+    if "," in base64_image:
+        header, data = base64_image.split(",", 1)
+        if "image/" in header:
+            ext = header.split("/")[1].split(";")[0]
+        else:
+            ext = "png"
+    else:
+        data = base64_image
+        ext = "png"
+
+    key = f"{prefix}/{uuid.uuid4().hex}.{ext}"
+
+    s3 = boto3.client(
+        "s3",
+        region_name=settings.S3_REGION,
+        endpoint_url=settings.S3_ENDPOINT,
+        aws_access_key_id=settings.S3_ACCESS_KEY_ID,
+        aws_secret_access_key=settings.S3_SECRET_ACCESS_KEY,
+        config=BotoConfig(signature_version="s3v4", s3={"addressing_style": "path"}),
+    )
+    s3.put_object(
+        Bucket=settings.S3_BUCKET,
+        Key=key,
+        Body=base64.b64decode(data),
+        ContentType=f"image/{ext}",
+    )
+    return key
+
 async def create_especialista(data: EspecialistaCreate, user_id: str, tenant_id: str) -> Especialista:    
-    image_path=None
+    image_key = None
     if data.image:
-        image_path = save_base_64_image_local(data.image, 'especialistas')
+        # Antes: save_base_64_image_local(..., 'especialistas')  -> archivo local
+        # Ahora: subimos a R2 y guardamos la KEY
+        if data.image.startswith("data:") or "," in data.image:
+            image_key = _upload_base64_to_r2(data.image)
+        elif data.image.startswith("especialistas/"):
+            # por si envías ya una key
+            image_key = data.image
+        else:
+            image_key = None
+
     especialista = Especialista(
         user_id=PydanticObjectId(user_id),
         especialidades=[PydanticObjectId(eid) for eid in data.especialidad_ids],
         informacion=data.informacion if data.informacion else None,
-        image=image_path if image_path else None,
+        image=image_key if image_key else None,
         disponibilidades=[disp.model_dump() for disp in data.disponibilidades],
         tenant_id=tenant_id,
     )
@@ -37,13 +84,18 @@ async def update_especialista(especialista_id: str, data: EspecialistaUpdate, te
     especialista.especialidades = [PydanticObjectId(eId) for eId in data.especialidad_ids]
     especialista.disponibilidades = [disp.model_dump() for disp in data.disponibilidades]
 
-    if data.image:
-        if data.image.startswith('/static/'):
-            especialista_image = os.path.join("static", data.image.split("/static/")[-1])
-        else:
-            especialista.image = save_base_64_image_local(data.image, 'especialistas')
-    else:
+    if data.image is None or data.image == "":
         especialista.image = None
+    elif data.image.startswith("data:") or "," in data.image:
+        especialista.image = _upload_base64_to_r2(data.image)
+    elif data.image.startswith("especialistas/"):
+        especialista.image = data.image
+    elif data.image.startswith("http") or data.image.startswith("/static/"):
+        # Antes intentabas traducir '/static/...' a ruta local y re-guardar; eso falla tras redeploy. No tocar.
+        pass
+    else:
+        # Valor desconocido -> no tocar imagen existente
+        pass
 
     especialista.informacion = data.informacion if data.informacion else None
 
@@ -139,10 +191,22 @@ def especialista_to_out(especialista: Especialista) -> EspecialistaOut:
     especialista_dict['id'] = str(especialista.id)
     especialista_dict['especialidad_ids'] = [str(eId) for eId in especialista.especialidades]
     
-    image_path = especialista.image
-    if image_path and os.path.exists(image_path):
-        url_path = image_path.replace('\\', '/')
-        especialista_dict['image'] = f"/static/{url_path.split('static/', 1)[-1]}"
+    key = especialista.image
+    if key:
+        s3 = boto3.client(
+            "s3",
+            region_name=settings.S3_REGION,
+            endpoint_url=settings.S3_ENDPOINT,
+            aws_access_key_id=settings.S3_ACCESS_KEY_ID,
+            aws_secret_access_key=settings.S3_SECRET_ACCESS_KEY,
+            config=BotoConfig(signature_version="s3v4", s3={"addressing_style": "path"}),
+        )
+        especialista_dict['image'] = s3.generate_presigned_url(
+            "get_object",
+            Params={"Bucket": settings.S3_BUCKET, "Key": key},
+            ExpiresIn=60,
+            HttpMethod="GET",
+        )
     else:
         especialista_dict['image'] = None
 

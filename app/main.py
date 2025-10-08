@@ -79,5 +79,5 @@ app.include_router(historial_routes.router)
 app.include_router(ws_router)
 app.include_router(reportes_citas_routes.router)
 
-# Static
-app.mount("/static", StaticFiles(directory="static"))
+# # Static
+# app.mount("/static", StaticFiles(directory="static"))
