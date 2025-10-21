@@ -21,7 +21,7 @@ if settings.DEBUG_REMINDERS and logger.level > logging.DEBUG:
 # ---------- Config de tiempo ----------
 TEST_SPEEDUP = settings.REMINDERS_TEST_SPEEDUP
 # 1 'hora' = 1 'minuto' en tests
-HOUR_SECONDS = 60 if TEST_SPEEDUP else 60 * 60
+HOUR_SECONDS = 60 if TEST_SPEEDUP == '1' else 60 * 60
 SLEEP_SECONDS = settings.REMINDERS_SLEEP_SECONDS
 TOLERANCE_SECONDS = settings.REMINDERS_TOLERANCE_SECONDS
 
